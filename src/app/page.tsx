@@ -1,103 +1,101 @@
-import Image from "next/image";
+'use client'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { useGeolocation } from '@/hooks/useGeolocation'
+import NearbyGroups from '@/components/NearbyGroups'
 
-export default function Home() {
+export default function HomePage() {
+  const router = useRouter()
+  const [name, setName] = useState('')
+  const [creating, setCreating] = useState(false)
+  const { lat, lng, loading: geoLoading, requestLocation } = useGeolocation()
+
+  useEffect(() => {
+    const saved = localStorage.getItem('jukebox-name')
+    if (saved) setName(saved)
+  }, [])
+
+  const createGroup = async () => {
+    if (!name.trim()) return
+    setCreating(true)
+    localStorage.setItem('jukebox-name', name.trim())
+
+    const { data, error } = await supabase
+      .from('groups')
+      .insert({
+        name: `${name.trim()}'s Party`,
+        lat: lat ?? null,
+        lng: lng ?? null,
+      })
+      .select('id')
+      .single()
+
+    if (error || !data) {
+      setCreating(false)
+      return
+    }
+
+    router.push(`/group/${data.id}?name=${encodeURIComponent(name.trim())}`)
+  }
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="min-h-screen bg-zinc-900 text-white">
+      <div className="container mx-auto px-4 py-12 max-w-lg">
+        <h1 className="text-6xl font-black text-center mb-4 text-white">
+          🎵 Office Jukebox
+        </h1>
+        <p className="text-center opacity-70 mb-12">Collaborative music for your office</p>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+        <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 space-y-6">
+          {/* Name input */}
+          <div>
+            <label className="block text-sm font-medium mb-2 opacity-80">Your name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && createGroup()}
+              placeholder="e.g. Alex"
+              className="w-full p-4 bg-white/20 rounded-xl text-white placeholder-white/50 text-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+
+          {/* Location */}
+          <div>
+            {lat == null ? (
+              <button
+                onClick={requestLocation}
+                disabled={geoLoading}
+                className="w-full py-3 bg-white/10 hover:bg-white/20 disabled:opacity-50 rounded-xl text-sm transition-all"
+              >
+                {geoLoading ? '📍 Getting location…' : '📍 Enable location (find nearby parties)'}
+              </button>
+            ) : (
+              <p className="text-sm opacity-70 text-center">
+                📍 Location enabled — can find nearby parties
+              </p>
+            )}
+          </div>
+
+          {/* Create button */}
+          <button
+            onClick={createGroup}
+            disabled={!name.trim() || creating}
+            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-xl px-8 py-5 rounded-2xl font-bold shadow-lg hover:scale-105 disabled:hover:scale-100 transition-all duration-300"
           >
-            Read our docs
-          </a>
+            {creating ? 'Creating…' : '🚀 Start Office Music Party'}
+          </button>
+
+          {/* Nearby groups */}
+          {lat != null && lng != null && (
+            <NearbyGroups
+              lat={lat}
+              lng={lng}
+              onJoin={(id) => router.push(`/group/${id}?name=${encodeURIComponent(name.trim())}`)}
+            />
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
     </div>
-  );
+  )
 }
