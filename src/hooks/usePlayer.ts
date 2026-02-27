@@ -222,7 +222,7 @@ export function usePlayer(group: Group | undefined, _containerId?: string) {
 
   const seek = useCallback((fraction: number) => {
     const audio = audioRef.current
-    if (!audio || audio.duration <= 0) return
+    if (!audio || !isFinite(audio.duration) || audio.duration <= 0) return
     audio.currentTime = Math.max(0, Math.min(fraction * audio.duration, audio.duration))
   }, [])
 
