@@ -88,13 +88,13 @@ export default function Playlist({ group }: Props) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20">
-        <h2 className="text-3xl font-bold mb-8 flex items-center gap-3">
-          🎧 Playlist ({songs.length} songs)
+      <div className="bg-white/10 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-white/20 overflow-hidden">
+        <h2 className="text-xl sm:text-3xl font-bold mb-4 sm:mb-8 flex items-center gap-2 sm:gap-3 truncate">
+          🎧 Playlist ({songs.length})
         </h2>
 
         <div
-          className="border-4 border-dashed border-purple-400 rounded-2xl p-8 mb-8 text-center hover:border-purple-300 transition-all bg-purple-500/20"
+          className="border-4 border-dashed border-purple-400 rounded-lg sm:rounded-2xl p-4 sm:p-8 mb-4 sm:mb-8 text-center hover:border-purple-300 transition-all bg-purple-500/20 overflow-hidden"
           onDrop={(e) => {
             e.preventDefault()
             const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')
@@ -106,19 +106,19 @@ export default function Playlist({ group }: Props) {
             if (url?.includes('youtube.com')) addSongMutation.mutate(url)
           }}
         >
-          <p className="text-xl mb-4">🎵 Drag YouTube links here or paste</p>
-          <div className="flex gap-2 max-w-lg mx-auto">
+          <p className="text-sm sm:text-xl mb-3 sm:mb-4">🎵 Drag YouTube links here or paste</p>
+          <div className="flex flex-col sm:flex-row gap-2 max-w-lg mx-auto">
             <input
               value={inputUrl}
               onChange={(e) => setInputUrl(e.target.value)}
-              className="flex-1 p-3 bg-white/20 rounded-xl text-white placeholder-white/50"
+              className="flex-1 p-2 sm:p-3 bg-white/20 rounded-lg sm:rounded-xl text-white placeholder-white/50 text-sm sm:text-base min-w-0"
               placeholder="https://youtube.com/watch?v=..."
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             />
             <button
               onClick={handleAdd}
               disabled={addSongMutation.isPending}
-              className="px-5 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-xl font-bold transition-all"
+              className="px-4 sm:px-5 py-2 sm:py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg sm:rounded-xl font-bold transition-all text-sm sm:text-base whitespace-nowrap"
             >
               {addSongMutation.isPending ? '…' : 'Add'}
             </button>
@@ -130,7 +130,7 @@ export default function Playlist({ group }: Props) {
             <div
               {...provided.droppableProps}
               ref={provided.innerRef}
-              className={`space-y-4 max-h-96 overflow-y-auto p-2 rounded-2xl transition-all ${
+              className={`space-y-2 sm:space-y-4 max-h-60 sm:max-h-96 overflow-y-auto p-2 rounded-lg sm:rounded-2xl transition-all ${
                 snapshot.isDraggingOver ? 'bg-purple-500/20' : 'bg-transparent'
               }`}
             >
@@ -142,7 +142,7 @@ export default function Playlist({ group }: Props) {
                       {...provided.draggableProps}
                       {...provided.dragHandleProps}
                       style={provided.draggableProps.style}
-                      className={`p-4 rounded-2xl border transition-all flex items-center gap-4 cursor-grab active:cursor-grabbing ${
+                      className={`p-2 sm:p-4 rounded-lg sm:rounded-2xl border transition-all flex items-center gap-2 sm:gap-4 cursor-grab active:cursor-grabbing overflow-hidden ${
                         index === (group.current_index ?? 0)
                           ? 'border-yellow-400/60 bg-yellow-500/10'
                           : snapshot.isDragging
@@ -150,28 +150,28 @@ export default function Playlist({ group }: Props) {
                           : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <span className="text-xl font-black w-8 text-purple-400">{index + 1}</span>
+                      <span className="text-lg sm:text-xl font-black flex-shrink-0 w-6 sm:w-8 text-purple-400">{index + 1}</span>
                       <Image
                         src={song.thumbnail}
                         alt={song.title}
                         width={56}
                         height={56}
-                        className="w-14 h-14 rounded-xl object-cover shadow-lg"
+                        className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl object-cover shadow-lg flex-shrink-0"
                       />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold truncate">{song.title}</p>
-                        <p className="text-sm opacity-60">{Math.floor(song.duration / 60)}:{String(song.duration % 60).padStart(2, '0')}</p>
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <p className="text-sm sm:text-base font-semibold truncate">{song.title}</p>
+                        <p className="text-xs sm:text-sm opacity-60">{Math.floor(song.duration / 60)}:{String(song.duration % 60).padStart(2, '0')}</p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                         <button
                           onClick={() => voteMutation.mutate(song.id)}
-                          className="px-3 py-1.5 bg-purple-500 hover:bg-purple-600 rounded-xl font-bold text-sm transition-all"
+                          className="px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-500 hover:bg-purple-600 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap"
                         >
                           👍 {song.votes}
                         </button>
                         <button
                           onClick={() => removeSongMutation.mutate(song.id)}
-                          className="px-3 py-1.5 bg-red-500/40 hover:bg-red-500/70 rounded-xl text-sm transition-all"
+                          className="px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500/40 hover:bg-red-500/70 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all flex-shrink-0"
                         >
                           ✕
                         </button>

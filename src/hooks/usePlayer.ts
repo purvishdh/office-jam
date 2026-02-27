@@ -156,12 +156,16 @@ export function usePlayer(group: Group | undefined, containerId: string) {
   useEffect(() => {
     const id = setInterval(() => {
       const player = playerRef.current
-      if (!player) return
-      const dur = player.getDuration()
-      const cur = player.getCurrentTime()
-      if (dur > 0) {
-        setProgress(cur / dur)
-        setDuration(dur)
+      if (!player || !playerReadyRef.current) return
+      try {
+        const dur = player.getDuration()
+        const cur = player.getCurrentTime()
+        if (dur > 0) {
+          setProgress(cur / dur)
+          setDuration(dur)
+        }
+      } catch {
+        console.warn('Error polling player progress, likely due to player not being ready yet')
       }
     }, 500)
     return () => clearInterval(id)
@@ -207,7 +211,16 @@ export function usePlayer(group: Group | undefined, containerId: string) {
     }).eq('id', groupId)
   }, [])
 
+  const seek = useCallback((fraction: number) => {
+    const player = playerRef.current
+    if (!player) return
+    const duration = player.getDuration()
+    if (duration <= 0) return
+    const targetTime = Math.max(0, Math.min(fraction * duration, duration))
+    player.seekTo(targetTime, true)
+  }, [])
+
   const currentSong: Song | undefined = group?.playlist[group?.current_index ?? 0]
 
-  return { isPlaying, progress, duration, currentSong, togglePlay, skipNext, skipPrev }
+  return { isPlaying, progress, duration, currentSong, togglePlay, skipNext, skipPrev, seek }
 }

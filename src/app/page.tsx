@@ -41,22 +41,22 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
-      <div className="container mx-auto px-4 py-12 max-w-lg">
-        <h1 className="text-6xl font-black text-center mb-4 text-white">
+      <div className="container mx-auto px-3 py-6 sm:px-4 sm:py-12 max-w-lg">
+        <h1 className="text-4xl sm:text-6xl font-black text-center mb-2 sm:mb-4 text-white">
           🎵 Office Jukebox
         </h1>
-        <p className="text-center opacity-70 mb-12">Collaborative music for your office</p>
+        <p className="text-center text-sm sm:text-base opacity-70 mb-6 sm:mb-12">Collaborative music for your office</p>
 
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 space-y-6">
+        <div className="bg-white/10 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-white/20 space-y-4 sm:space-y-6">
           {/* Name input */}
           <div>
-            <label className="block text-sm font-medium mb-2 opacity-80">Your name</label>
+            <label className="block text-xs sm:text-sm font-medium mb-2 opacity-80">Your name</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && createGroup()}
               placeholder="e.g. Alex"
-              className="w-full p-4 bg-white/20 rounded-xl text-white placeholder-white/50 text-lg focus:outline-none focus:ring-2 focus:ring-purple-400"
+              className="w-full p-3 sm:p-4 bg-white/20 rounded-lg sm:rounded-xl text-base sm:text-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
             />
           </div>
 
@@ -66,12 +66,12 @@ export default function HomePage() {
               <button
                 onClick={requestLocation}
                 disabled={geoLoading}
-                className="w-full py-3 bg-white/10 hover:bg-white/20 disabled:opacity-50 rounded-xl text-sm transition-all"
+                className="w-full py-2 sm:py-3 bg-white/10 hover:bg-white/20 disabled:opacity-50 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all"
               >
                 {geoLoading ? '📍 Getting location…' : '📍 Enable location (find nearby parties)'}
               </button>
             ) : (
-              <p className="text-sm opacity-70 text-center">
+              <p className="text-xs sm:text-sm opacity-70 text-center">
                 📍 Location enabled — can find nearby parties
               </p>
             )}
@@ -81,7 +81,7 @@ export default function HomePage() {
           <button
             onClick={createGroup}
             disabled={!name.trim() || creating}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-xl px-8 py-5 rounded-2xl font-bold shadow-lg hover:scale-105 disabled:hover:scale-100 transition-all duration-300"
+            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-base sm:text-xl px-4 sm:px-8 py-3 sm:py-5 rounded-lg sm:rounded-2xl font-bold shadow-lg hover:scale-105 disabled:hover:scale-100 transition-all duration-300"
           >
             {creating ? 'Creating…' : '🚀 Start Office Music Party'}
           </button>

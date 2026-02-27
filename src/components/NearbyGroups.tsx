@@ -28,23 +28,23 @@ export default function NearbyGroups({ lat, lng, onJoin }: Props) {
     refetchInterval: 10000,
   })
 
-  if (isLoading) return <p className="opacity-60 text-sm">Scanning for nearby parties…</p>
+  if (isLoading) return <p className="opacity-60 text-xs sm:text-sm">Scanning for nearby parties…</p>
 
   if (!data?.length) return (
-    <p className="opacity-60 text-sm">No parties within {PROXIMITY_METERS}m</p>
+    <p className="opacity-60 text-xs sm:text-sm">No parties within {PROXIMITY_METERS}m</p>
   )
 
   return (
-    <div className="mt-4 space-y-2">
-      <p className="text-sm font-semibold opacity-80">Nearby parties:</p>
+    <div className="mt-3 sm:mt-4 space-y-2">
+      <p className="text-xs sm:text-sm font-semibold opacity-80">Nearby parties:</p>
       {data.map((g) => (
         <button
           key={g.id}
           onClick={() => onJoin(g.id)}
-          className="w-full flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-xl px-4 py-3 transition-all"
+          className="w-full flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 transition-all text-sm sm:text-base"
         >
-          <span className="font-medium">{g.name}</span>
-          <span className="text-sm opacity-60">{g.playlist?.length ?? 0} songs</span>
+          <span className="font-medium truncate">{g.name}</span>
+          <span className="text-xs sm:text-sm opacity-60 ml-2">{g.playlist?.length ?? 0} songs</span>
         </button>
       ))}
     </div>

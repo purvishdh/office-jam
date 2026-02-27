@@ -44,19 +44,19 @@ export default function GroupRoom({ groupId, nameParam }: Props) {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-4xl font-black text-white">
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-full lg:max-w-7xl">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4 mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-4xl font-black text-white break-words flex-1 min-w-0">
             🎵 {group.name}
           </h1>
-          <span className="text-sm opacity-60">Hi, {memberName}!</span>
+          <span className="text-xs sm:text-sm opacity-60 whitespace-nowrap">Hi, {memberName}!</span>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6 w-full">
+          <div className="lg:col-span-2 space-y-3 sm:space-y-6 min-w-0">
             <Playlist group={group} />
           </div>
-          <div className="space-y-6">
+          <div className="space-y-3 sm:space-y-6 min-w-0">
             <Player group={group} />
             <MemberList members={members} />
             <QRCodeComponent groupId={groupId} />
