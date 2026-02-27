@@ -33,6 +33,7 @@ export async function fetchSong(youtubeUrl: string, currentQueueLength: number):
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     title: video.title,
     video_id: video.video_id,
+    piped_url: video.piped_url,
     thumbnail: video.thumbnail,
     duration: video.duration,
     votes: 0,

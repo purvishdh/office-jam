@@ -6,6 +6,7 @@ export interface Song {
   duration: number
   votes: number
   order: number
+  piped_url: string
 }
 
 export interface Group {

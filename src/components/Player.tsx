@@ -15,10 +15,10 @@ export default function Player({ group }: { group: Group | undefined }) {
 
   return (
     <div className="bg-white/10 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-white/20">
-      {/* Hidden IFrame API container — must NOT be display:none */}
+      {/* YouTube IFrame API container — off-screen but real size so browsers allow audio */}
       <div
         id={PLAYER_CONTAINER_ID}
-        style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}
+        style={{ position: 'fixed', left: -9999, top: -9999, width: 320, height: 180, pointerEvents: 'none' }}
       />
 
       <h3 className="text-lg sm:text-2xl font-bold mb-4 sm:mb-6 text-center">🎛️ Now Playing</h3>

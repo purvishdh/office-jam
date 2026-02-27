@@ -34,10 +34,13 @@ export async function GET(req: NextRequest) {
   const snippet = item.snippet
   const contentDetails = item.contentDetails
 
+  const audioUrl = `https://www.youtube.com/watch?v=${videoId}&listen=1&pp=0&disable_polymer=1`
+
   return NextResponse.json({
     title: snippet.title,
     thumbnail: snippet.thumbnails?.maxres?.url ?? snippet.thumbnails?.high?.url ?? snippet.thumbnails?.default?.url ?? '',
     duration: parseISO8601Duration(contentDetails.duration),
     video_id: videoId,
+    piped_url: audioUrl,
   })
 }

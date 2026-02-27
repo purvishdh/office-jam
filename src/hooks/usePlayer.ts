@@ -3,35 +3,21 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Group, Song } from '@/lib/types'
 
-function loadYTScript(): Promise<void> {
-  return new Promise((resolve) => {
-    // Already loaded
-    if (typeof window !== 'undefined' && window.YT && window.YT.Player) {
-      resolve()
-      return
-    }
-    // Script injected but not yet ready — chain onto existing callback
-    if (typeof window !== 'undefined' && window.onYouTubeIframeAPIReady) {
-      const existing = window.onYouTubeIframeAPIReady
-      window.onYouTubeIframeAPIReady = () => {
-        existing()
-        resolve()
-      }
-      return
-    }
-    // First caller — inject script
-    window.onYouTubeIframeAPIReady = resolve
-    const tag = document.createElement('script')
-    tag.src = 'https://www.youtube.com/iframe_api'
-    document.head.appendChild(tag)
+// Update the Media Session API so the phone lock screen / notification bar
+// shows the current song with artwork and playback controls.
+function updateMediaSession(song: Song, isPlaying: boolean) {
+  if (!('mediaSession' in navigator)) return
+
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: song.title,
+    artwork: [{ src: song.thumbnail, sizes: '256x256', type: 'image/jpeg' }],
   })
+  navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
 }
 
-export function usePlayer(group: Group | undefined, containerId: string) {
-  const playerRef = useRef<YT.Player | null>(null)
-  const playerReadyRef = useRef(false)
-  const pendingGroupRef = useRef<Group | null>(null)
-  const loadedVideoIdRef = useRef<string | null>(null)
+export function usePlayer(group: Group | undefined, _containerId?: string) {
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const loadedUrlRef = useRef<string | null>(null)
   const groupRef = useRef<Group | undefined>(group)
   const groupIdRef = useRef<string | undefined>(group?.id)
 
@@ -39,133 +25,156 @@ export function usePlayer(group: Group | undefined, containerId: string) {
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(0)
 
-  // Keep refs in sync so onStateChange closure sees fresh values
+  // Keep refs fresh inside event callbacks
   useEffect(() => {
     groupRef.current = group
     groupIdRef.current = group?.id
   })
 
+  // Create audio element once on mount
+  useEffect(() => {
+    const audio = new Audio()
+    audio.preload = 'auto'
+    audioRef.current = audio
+
+    // Auto-advance to next song when current one ends
+    const handleEnded = () => {
+      const g = groupRef.current
+      if (!g) return
+      const nextIdx = (g.current_index ?? 0) + 1
+      if (nextIdx < g.playlist.length) {
+        supabase.from('groups').update({
+          current_index: nextIdx,
+          is_playing: true,
+          playback_started_at: new Date().toISOString(),
+        }).eq('id', groupIdRef.current!)
+      }
+    }
+
+    audio.addEventListener('ended', handleEnded)
+
+    return () => {
+      audio.removeEventListener('ended', handleEnded)
+      audio.pause()
+      audio.src = ''
+      audioRef.current = null
+      loadedUrlRef.current = null
+    }
+  }, [])
+
+  // Apply group state whenever Supabase pushes an update
   const applyGroupState = useCallback((g: Group) => {
-    const player = playerRef.current
-    if (!player) return
+    const audio = audioRef.current
+    if (!audio) return
 
     const song: Song | undefined = g.playlist[g.current_index ?? 0]
-    if (!song) return
+    if (!song?.piped_url) return
 
     const elapsed = g.playback_started_at
       ? (Date.now() - new Date(g.playback_started_at).getTime()) / 1000
       : 0
 
-    if (song.video_id !== loadedVideoIdRef.current) {
-      loadedVideoIdRef.current = song.video_id
-      if (g.is_playing) {
-        player.loadVideoById(song.video_id, Math.max(0, elapsed))
-      } else {
-        player.cueVideoById(song.video_id, Math.max(0, elapsed))
+    const urlChanged = song.piped_url !== loadedUrlRef.current
+
+    if (urlChanged) {
+      loadedUrlRef.current = song.piped_url
+      audio.src = song.piped_url
+      audio.load()
+    }
+
+    if (g.is_playing) {
+      // Re-sync position if we're off by more than 2 seconds
+      if (!urlChanged && Math.abs(audio.currentTime - elapsed) > 2) {
+        audio.currentTime = Math.max(0, elapsed)
+      } else if (urlChanged) {
+        audio.currentTime = Math.max(0, elapsed)
       }
+      audio.play().catch(() => {
+        // Autoplay blocked — the user will need to tap play manually
+      })
     } else {
-      const state = player.getPlayerState()
-      if (g.is_playing) {
-        const currentTime = player.getCurrentTime()
-        if (Math.abs(currentTime - elapsed) > 2) {
-          player.seekTo(elapsed, true)
-        }
-        if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
-          player.playVideo()
-        }
-      } else {
-        if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
-          player.pauseVideo()
-        }
-      }
+      audio.pause()
     }
 
     setIsPlaying(g.is_playing)
+    updateMediaSession(song, g.is_playing)
   }, [])
 
-  // Init effect — load script and create player once
-  useEffect(() => {
-    let player: YT.Player | null = null
-    let destroyed = false
-
-    loadYTScript().then(() => {
-      if (destroyed) return
-
-      player = new YT.Player(containerId, {
-        width: 1,
-        height: 1,
-        playerVars: {
-          autoplay: 0,
-          controls: 0,
-          disablekb: 1,
-          playsinline: 1,
-          rel: 0,
-        },
-        events: {
-          onReady: () => {
-            playerReadyRef.current = true
-            if (pendingGroupRef.current) {
-              applyGroupState(pendingGroupRef.current)
-              pendingGroupRef.current = null
-            }
-          },
-          onStateChange: (e) => {
-            if (e.data === YT.PlayerState.ENDED) {
-              const g = groupRef.current
-              if (!g) return
-              const nextIdx = (g.current_index ?? 0) + 1
-              if (nextIdx < g.playlist.length) {
-                supabase.from('groups').update({
-                  current_index: nextIdx,
-                  is_playing: true,
-                  playback_started_at: new Date().toISOString(),
-                }).eq('id', groupIdRef.current!)
-              }
-            }
-          },
-        },
-      })
-
-      playerRef.current = player
-    })
-
-    return () => {
-      destroyed = true
-      if (player) {
-        try { player.destroy() } catch {}
-      }
-      playerRef.current = null
-      playerReadyRef.current = false
-      loadedVideoIdRef.current = null
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerId])
-
-  // Group-watch effect
+  // Re-apply state whenever relevant group fields change
   useEffect(() => {
     if (!group) return
-    if (!playerReadyRef.current) {
-      pendingGroupRef.current = group
-      return
-    }
     applyGroupState(group)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [group?.is_playing, group?.playback_started_at, group?.current_index, group?.playlist, applyGroupState])
 
+  // Wire up Media Session action handlers so lock screen buttons work
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return
+
+    const handlePlay = () => {
+      const groupId = groupIdRef.current
+      const audio = audioRef.current
+      if (!groupId || !audio) return
+      supabase.from('groups').update({
+        is_playing: true,
+        playback_started_at: new Date(Date.now() - audio.currentTime * 1000).toISOString(),
+      }).eq('id', groupId)
+    }
+
+    const handlePause = () => {
+      const groupId = groupIdRef.current
+      if (!groupId) return
+      supabase.from('groups').update({ is_playing: false, playback_started_at: null }).eq('id', groupId)
+    }
+
+    const handleNext = () => {
+      const g = groupRef.current
+      const groupId = groupIdRef.current
+      if (!g || !groupId) return
+      const nextIndex = (g.current_index ?? 0) + 1
+      if (nextIndex >= g.playlist.length) return
+      loadedUrlRef.current = null
+      supabase.from('groups').update({
+        current_index: nextIndex,
+        is_playing: true,
+        playback_started_at: new Date().toISOString(),
+      }).eq('id', groupId)
+    }
+
+    const handlePrev = () => {
+      const g = groupRef.current
+      const groupId = groupIdRef.current
+      if (!g || !groupId) return
+      const prevIndex = Math.max(0, (g.current_index ?? 0) - 1)
+      loadedUrlRef.current = null
+      supabase.from('groups').update({
+        current_index: prevIndex,
+        is_playing: true,
+        playback_started_at: new Date().toISOString(),
+      }).eq('id', groupId)
+    }
+
+    navigator.mediaSession.setActionHandler('play', handlePlay)
+    navigator.mediaSession.setActionHandler('pause', handlePause)
+    navigator.mediaSession.setActionHandler('nexttrack', handleNext)
+    navigator.mediaSession.setActionHandler('previoustrack', handlePrev)
+
+    return () => {
+      navigator.mediaSession.setActionHandler('play', null)
+      navigator.mediaSession.setActionHandler('pause', null)
+      navigator.mediaSession.setActionHandler('nexttrack', null)
+      navigator.mediaSession.setActionHandler('previoustrack', null)
+    }
+  }, [])
+
   // Progress polling
   useEffect(() => {
     const id = setInterval(() => {
-      const player = playerRef.current
-      if (!player || !playerReadyRef.current) return
-      try {
-        const dur = player.getDuration()
-        const cur = player.getCurrentTime()
-        if (dur > 0) {
-          setProgress(cur / dur)
-          setDuration(dur)
-        }
-      } catch {
-        console.warn('Error polling player progress, likely due to player not being ready yet')
+      const audio = audioRef.current
+      if (!audio) return
+      if (audio.duration > 0) {
+        setProgress(audio.currentTime / audio.duration)
+        setDuration(audio.duration)
       }
     }, 500)
     return () => clearInterval(id)
@@ -173,13 +182,13 @@ export function usePlayer(group: Group | undefined, containerId: string) {
 
   const togglePlay = useCallback(async () => {
     const groupId = groupIdRef.current
-    if (!groupId) return
+    const audio = audioRef.current
+    if (!groupId || !audio) return
     const nowPlaying = !isPlaying
-    const currentTime = playerRef.current?.getCurrentTime() ?? 0
     await supabase.from('groups').update({
       is_playing: nowPlaying,
       playback_started_at: nowPlaying
-        ? new Date(Date.now() - currentTime * 1000).toISOString()
+        ? new Date(Date.now() - audio.currentTime * 1000).toISOString()
         : null,
     }).eq('id', groupId)
   }, [isPlaying])
@@ -190,7 +199,7 @@ export function usePlayer(group: Group | undefined, containerId: string) {
     if (!groupId || !g) return
     const nextIndex = (g.current_index ?? 0) + 1
     if (nextIndex >= g.playlist.length) return
-    loadedVideoIdRef.current = null
+    loadedUrlRef.current = null
     await supabase.from('groups').update({
       current_index: nextIndex,
       is_playing: true,
@@ -203,7 +212,7 @@ export function usePlayer(group: Group | undefined, containerId: string) {
     const g = groupRef.current
     if (!groupId || !g) return
     const prevIndex = Math.max(0, (g.current_index ?? 0) - 1)
-    loadedVideoIdRef.current = null
+    loadedUrlRef.current = null
     await supabase.from('groups').update({
       current_index: prevIndex,
       is_playing: true,
@@ -212,12 +221,9 @@ export function usePlayer(group: Group | undefined, containerId: string) {
   }, [])
 
   const seek = useCallback((fraction: number) => {
-    const player = playerRef.current
-    if (!player) return
-    const duration = player.getDuration()
-    if (duration <= 0) return
-    const targetTime = Math.max(0, Math.min(fraction * duration, duration))
-    player.seekTo(targetTime, true)
+    const audio = audioRef.current
+    if (!audio || audio.duration <= 0) return
+    audio.currentTime = Math.max(0, Math.min(fraction * audio.duration, audio.duration))
   }, [])
 
   const currentSong: Song | undefined = group?.playlist[group?.current_index ?? 0]
