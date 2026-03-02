@@ -39,6 +39,42 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
+## 📚 Complete Documentation
+
+This project now includes **comprehensive documentation** covering architecture, issues, and implementation guides:
+
+| Document | Purpose | Length |
+|----------|---------|--------|
+| **[QUICK_START.md](QUICK_START.md)** | 5-minute orientation for new developers | 5 min |
+| **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** | Executive summary of the app | 10 min |
+| **[CRITICAL_ISSUES.md](CRITICAL_ISSUES.md)** | The YouTube IFrame bug + 7-step fix | 15 min read / 6.5 hrs implementation |
+| **[APP_ARCHITECTURE.md](APP_ARCHITECTURE.md)** | Complete system design & how it works | 30 min |
+| **[CODE_REVIEW.md](CODE_REVIEW.md)** | 10 code issues + quality improvements | 20 min |
+| **[VISUAL_GUIDE.md](VISUAL_GUIDE.md)** | Architecture diagrams & flows | 15 min |
+| **[DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md)** | Navigation guide for all docs | 5 min |
+
+### Where to Start?
+
+**Pick one based on your role:**
+
+👤 **New Developer:** Start with [QUICK_START.md](QUICK_START.md) (5 min)  
+🔧 **Implementing the Fix:** Read [CRITICAL_ISSUES.md](CRITICAL_ISSUES.md) (15 min + 6.5 hrs coding)  
+📊 **Understanding the System:** Read [APP_ARCHITECTURE.md](APP_ARCHITECTURE.md) (30 min)  
+🎯 **Planning Features:** Read [CODE_REVIEW.md](CODE_REVIEW.md) + [APP_ARCHITECTURE.md](APP_ARCHITECTURE.md)  
+🎨 **Visual Learner:** Start with [VISUAL_GUIDE.md](VISUAL_GUIDE.md)  
+
+---
+
+## 🚨 Current Status
+
+**MVP is BLOCKED on one critical issue:**
+
+The app doesn't work on mobile phones when the screen is locked because the YouTube IFrame API gets suspended by the browser.
+
+**→ See [CRITICAL_ISSUES.md](CRITICAL_ISSUES.md) for the 7-step fix (6.5 hours)**
+
+---
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com) from the creators of Next.js.
