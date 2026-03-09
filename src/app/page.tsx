@@ -2,14 +2,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { useGeolocation } from '@/hooks/useGeolocation'
-import NearbyGroups from '@/components/NearbyGroups'
+import PublicGroups from '@/components/NearbyGroups'
 
 export default function HomePage() {
   const router = useRouter()
   const [name, setName] = useState('')
+  const [groupId, setGroupId] = useState('')
   const [creating, setCreating] = useState(false)
-  const { lat, lng, loading: geoLoading, requestLocation } = useGeolocation()
 
   useEffect(() => {
     const saved = localStorage.getItem('jukebox-name')
@@ -17,33 +16,65 @@ export default function HomePage() {
   }, [])
 
   const createGroup = async () => {
-    if (!name.trim()) return
+    if (!name.trim()) {
+      alert('Please enter your name first')
+      return
+    }
+    
+    console.log('🚀 Starting to create group for:', name.trim())
     setCreating(true)
     localStorage.setItem('jukebox-name', name.trim())
 
-    const { data, error } = await supabase
-      .from('groups')
-      .insert({
-        name: `${name.trim()}'s Party`,
-        lat: lat ?? null,
-        lng: lng ?? null,
-      })
-      .select('id')
-      .single()
+    try {
+      console.log('📡 Calling Supabase to create group...')
+      const { data, error } = await supabase
+        .from('groups')
+        .insert({
+          name: `${name.trim()}'s Party`,
+        })
+        .select('id')
+        .single()
 
-    if (error || !data) {
+      console.log('📡 Supabase response:', { data, error })
+
+      if (error) {
+        console.error('❌ Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        })
+        alert(`Failed to create party: ${error.message || 'Unknown error'}`)
+        setCreating(false)
+        return
+      }
+
+      if (!data) {
+        console.error('❌ No data returned from Supabase')
+        alert('Failed to create party: No data returned')
+        setCreating(false)
+        return
+      }
+
+      console.log('✅ Group created successfully, navigating to:', data.id)
+      router.push(`/group/${data.id}?name=${encodeURIComponent(name.trim())}`)
+    } catch (err) {
+      console.error('❌ Network error:', err)
       setCreating(false)
-      return
     }
+  }
 
-    router.push(`/group/${data.id}?name=${encodeURIComponent(name.trim())}`)
+  const joinGroup = () => {
+    if (!name.trim() || !groupId.trim()) return
+    localStorage.setItem('jukebox-name', name.trim())
+    router.push(`/group/${groupId.trim()}?name=${encodeURIComponent(name.trim())}`)
   }
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
       <div className="container mx-auto px-3 py-6 sm:px-4 sm:py-12 max-w-lg">
         <h1 className="text-4xl sm:text-6xl font-black text-center mb-2 sm:mb-4 text-white">
-          🎵 Office Jukebox
+          🎵
         </h1>
         <p className="text-center text-sm sm:text-base opacity-70 mb-6 sm:mb-12">Collaborative music for your office</p>
 
@@ -60,23 +91,6 @@ export default function HomePage() {
             />
           </div>
 
-          {/* Location */}
-          <div>
-            {lat == null ? (
-              <button
-                onClick={requestLocation}
-                disabled={geoLoading}
-                className="w-full py-2 sm:py-3 bg-white/10 hover:bg-white/20 disabled:opacity-50 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all"
-              >
-                {geoLoading ? '📍 Getting location…' : '📍 Enable location (find nearby parties)'}
-              </button>
-            ) : (
-              <p className="text-xs sm:text-sm opacity-70 text-center">
-                📍 Location enabled — can find nearby parties
-              </p>
-            )}
-          </div>
-
           {/* Create button */}
           <button
             onClick={createGroup}
@@ -86,14 +100,39 @@ export default function HomePage() {
             {creating ? 'Creating…' : '🚀 Start Office Music Party'}
           </button>
 
-          {/* Nearby groups */}
-          {lat != null && lng != null && (
-            <NearbyGroups
-              lat={lat}
-              lng={lng}
-              onJoin={(id) => router.push(`/group/${id}?name=${encodeURIComponent(name.trim())}`)}
+          {/* OR divider */}
+          <div className="relative flex items-center justify-center">
+            <div className="absolute inset-x-0 h-px bg-white/20"></div>
+            <div className="relative bg-zinc-900 px-4 text-xs sm:text-sm opacity-60">OR</div>
+          </div>
+
+          {/* Join by ID */}
+          <div className="space-y-3">
+            <label className="block text-xs sm:text-sm font-medium opacity-80">Join existing party</label>
+            <input
+              value={groupId}
+              onChange={(e) => setGroupId(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && joinGroup()}
+              placeholder="Enter party ID"
+              className="w-full p-3 sm:p-4 bg-white/20 rounded-lg sm:rounded-xl text-base sm:text-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
             />
-          )}
+            <button
+              onClick={joinGroup}
+              disabled={!name.trim() || !groupId.trim()}
+              className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-base sm:text-lg px-4 py-3 rounded-lg sm:rounded-xl font-semibold transition-all"
+            >
+              🎉 Join Party
+            </button>
+          </div>
+
+          {/* Recent groups */}
+          <PublicGroups
+            onJoin={(id) => {
+              if (!name.trim()) return
+              localStorage.setItem('jukebox-name', name.trim())
+              router.push(`/group/${id}?name=${encodeURIComponent(name.trim())}`)
+            }}
+          />
         </div>
       </div>
     </div>

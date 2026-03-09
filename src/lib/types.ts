@@ -7,6 +7,7 @@ export interface Song {
   votes: number
   order: number
   piped_url: string
+  piped_url_expires?: number
 }
 
 export interface Group {
@@ -16,8 +17,6 @@ export interface Group {
   current_index: number
   is_playing: boolean
   playback_started_at: string | null
-  lat: number | null
-  lng: number | null
   created_at: string
 }
 

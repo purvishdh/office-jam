@@ -1,42 +1,61 @@
 'use client'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { haversineDistance, PROXIMITY_METERS } from '@/lib/geo'
 import type { Group } from '@/lib/types'
 
 interface Props {
-  lat: number
-  lng: number
   onJoin: (groupId: string) => void
 }
 
-export default function NearbyGroups({ lat, lng, onJoin }: Props) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['nearby-groups', lat, lng],
+export default function PublicGroups({ onJoin }: Props) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['public-groups'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('groups')
-        .select('id, name, lat, lng, playlist')
-        .not('lat', 'is', null)
-        .not('lng', 'is', null)
-      if (error) throw error
-      return (data as Group[]).filter(
-        (g) => g.lat != null && g.lng != null &&
-          haversineDistance(lat, lng, g.lat!, g.lng!) <= PROXIMITY_METERS
-      )
+      try {
+        const { data, error } = await supabase
+          .from('groups')
+          .select('id, name, playlist, created_at')
+          .order('created_at', { ascending: false })
+          .limit(20)
+        
+        if (error) {
+          console.error('Supabase error:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          })
+          throw new Error(`Supabase: ${error.message || 'Unknown error'}`)
+        }
+        return data as Group[]
+      } catch (err) {
+        console.error('Network error fetching groups:', err)
+        throw new Error(`Network: ${err}`)
+      }
     },
     refetchInterval: 10000,
+    retry: (failureCount) => {
+      // Don't retry network errors too aggressively
+      return failureCount < 2
+    },
   })
 
-  if (isLoading) return <p className="opacity-60 text-xs sm:text-sm">Scanning for nearby parties…</p>
+  if (isLoading) return <p className="opacity-60 text-xs sm:text-sm">Loading parties…</p>
+  
+  if (error) return (
+    <div className="text-red-400 text-xs sm:text-sm space-y-1">
+      <p>Failed to load parties.</p>
+      <p className="opacity-60">Check your connection or try again later.</p>
+    </div>
+  )
 
   if (!data?.length) return (
-    <p className="opacity-60 text-xs sm:text-sm">No parties within {PROXIMITY_METERS}m</p>
+    <p className="opacity-60 text-xs sm:text-sm">No active parties found</p>
   )
 
   return (
     <div className="mt-3 sm:mt-4 space-y-2">
-      <p className="text-xs sm:text-sm font-semibold opacity-80">Nearby parties:</p>
+      <p className="text-xs sm:text-sm font-semibold opacity-80">Recent parties:</p>
       {data.map((g) => (
         <button
           key={g.id}

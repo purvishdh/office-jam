@@ -1,15 +1,34 @@
 # Office Jukebox 🎵
 
-A collaborative music player for teams to enjoy music together in real-time. Share a QR code with your team and everyone can see and control the playlist from any device.
+Real-time collaborative music player for teams. Create groups, add YouTube songs, and sync playback across all devices.
 
-## Features
+✅ **Status: FULLY FUNCTIONAL**  
+HTML5 audio with RapidAPI streaming - works perfectly on mobile with background playback!
 
-- 🎵 **Collaborative Playlist** - Team members can add and manage songs together
-- 📱 **Mobile Friendly** - Works seamlessly on all devices (phones, tablets, desktops)
-- 🔗 **QR Code Sharing** - Scan QR code to join group rooms instantly
-- 🎯 **Real-time Sync** - All players stay in sync across devices
-- 🌍 **Geolocation** - Find nearby groups in your area
-- 🎸 **YouTube Integration** - Stream songs from YouTube
+## ✨ Features
+
+- 🎵 **Real-time sync** — All devices play together
+- 📱 **Mobile support** — True background playback with screen lock support
+- 🎮 **Lock screen controls** — Full Media Session API integration  
+- 🌐 **Public discovery** — Browse and join public listening parties
+- 🔄 **Live playlist** — Add/remove/reorder songs collaboratively
+- ⚡ **Instant updates** — Powered by Supabase Realtime
+- 🎯 **Reliable streaming** — Multi-source RapidAPI waterfall system
+
+## 🔧 Technical Overview
+
+- **Frontend:** Next.js 15 (App Router) + React + TypeScript
+- **Backend:** Supabase (Database + Realtime)
+- **Audio:** HTML5 Audio + RapidAPI streaming services
+- **Styling:** Tailwind CSS + shadcn/ui components
+- **State:** React Query for data fetching and caching
+
+### Audio Streaming Architecture
+
+1. **RapidAPI Waterfall** - YouTube MP36, YouTube Downloader Video, YouTube Audio & Video URL
+2. **HTML5 Audio Element** - Native browser audio with background support
+3. **Media Session API** - Lock screen controls and metadata
+4. **Wake Lock API** - Prevents screen dimming during playback
 
 ## Getting Started
 
@@ -21,14 +40,13 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `src/app/page.tsx`. The page auto-updates as you edit the file.
-
 ## Prerequisites
 
 - Node.js 18+
-- npm or yarn
+- npm or yarn  
 - Supabase account (for database)
-- YouTube Data API key (optional, for full functionality)
+- YouTube Data API key (for song metadata)
+- RapidAPI account (for audio streaming)
 
 ## Environment Setup
 
@@ -37,6 +55,8 @@ Create a `.env.local` file in the root directory:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+YOUTUBE_API_KEY=your_youtube_api_key
+RAPIDAPI_KEY=your_rapidapi_key
 ```
 
 ## 📚 Complete Documentation

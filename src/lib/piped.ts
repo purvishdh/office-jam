@@ -34,6 +34,7 @@ export async function fetchSong(youtubeUrl: string, currentQueueLength: number):
     title: video.title,
     video_id: video.video_id,
     piped_url: video.piped_url,
+    piped_url_expires: video.piped_url_expires,
     thumbnail: video.thumbnail,
     duration: video.duration,
     votes: 0,

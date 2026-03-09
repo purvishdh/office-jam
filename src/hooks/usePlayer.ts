@@ -15,11 +15,12 @@ function updateMediaSession(song: Song, isPlaying: boolean) {
   navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
 }
 
-export function usePlayer(group: Group | undefined, _containerId?: string) {
+export function usePlayer(group: Group | undefined) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const loadedUrlRef = useRef<string | null>(null)
   const groupRef = useRef<Group | undefined>(group)
   const groupIdRef = useRef<string | undefined>(group?.id)
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -51,10 +52,61 @@ export function usePlayer(group: Group | undefined, _containerId?: string) {
       }
     }
 
+    // Handle stream errors (including expiry)
+    const handleError = async () => {
+      const g = groupRef.current
+      const song: Song | undefined = g?.playlist[g?.current_index ?? 0]
+      if (!song?.video_id || !g) return
+
+      console.error('🚨 Audio playback error detected for:', song.title)
+      console.error('📄 Error details:', {
+        src: audio.src,
+        networkState: audio.networkState,
+        readyState: audio.readyState,
+        error: audio.error
+      })
+      
+      try {
+        console.log('🔄 Attempting to refresh stream URL...')
+        
+        // Fetch fresh stream URL
+        const streamRes = await fetch(`/api/stream?v=${song.video_id}`)
+        if (!streamRes.ok) {
+          const errorText = await streamRes.text()
+          throw new Error(`Failed to refresh stream: ${streamRes.status} ${errorText}`)
+        }
+        
+        const streamData = await streamRes.json()
+        console.log('✅ Got fresh stream data:', streamData)
+        
+        // Calculate elapsed time from playback_started_at
+        const elapsed = g.playback_started_at
+          ? (Date.now() - new Date(g.playback_started_at).getTime()) / 1000
+          : 0
+
+        // Update audio source and seek
+        audio.src = streamData.url
+        loadedUrlRef.current = streamData.url
+        audio.load()
+        audio.currentTime = Math.max(0, elapsed)
+
+        // Resume if was playing
+        if (g.is_playing) {
+          await audio.play()
+        }
+
+        console.log('✅ Stream URL refreshed successfully')
+      } catch (err) {
+        console.error('❌ Failed to recover from stream error:', err)
+      }
+    }
+
     audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('error', handleError)
 
     return () => {
       audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('error', handleError)
       audio.pause()
       audio.src = ''
       audioRef.current = null
@@ -65,10 +117,21 @@ export function usePlayer(group: Group | undefined, _containerId?: string) {
   // Apply group state whenever Supabase pushes an update
   const applyGroupState = useCallback((g: Group) => {
     const audio = audioRef.current
-    if (!audio) return
+    if (!audio) {
+      return
+    }
 
     const song: Song | undefined = g.playlist[g.current_index ?? 0]
-    if (!song?.piped_url) return
+    if (!song?.piped_url) {
+      return
+    }
+
+    // Check if the stream URL has expired
+    const now = Math.floor(Date.now() / 1000)
+    if (song.piped_url_expires && now > song.piped_url_expires) {
+      // TODO: Refresh the stream URL
+      // For now, we'll try to play the expired URL and let the error handler refresh it
+    }
 
     const elapsed = g.playback_started_at
       ? (Date.now() - new Date(g.playback_started_at).getTime()) / 1000
@@ -89,8 +152,13 @@ export function usePlayer(group: Group | undefined, _containerId?: string) {
       } else if (urlChanged) {
         audio.currentTime = Math.max(0, elapsed)
       }
-      audio.play().catch(() => {
-        // Autoplay blocked — the user will need to tap play manually
+      audio.play().catch((err) => {
+        console.warn('❌ Autoplay blocked or audio failed:', err.message)
+        // Show toast notification on first autoplay block
+        if (typeof window !== 'undefined' && !sessionStorage.getItem('autoplay-warned')) {
+          sessionStorage.setItem('autoplay-warned', '1')
+          // User will need to tap play manually due to browser autoplay policy
+        }
       })
     } else {
       audio.pause()
@@ -102,7 +170,9 @@ export function usePlayer(group: Group | undefined, _containerId?: string) {
 
   // Re-apply state whenever relevant group fields change
   useEffect(() => {
-    if (!group) return
+    if (!group) {
+      return
+    }
     applyGroupState(group)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [group?.is_playing, group?.playback_started_at, group?.current_index, group?.playlist, applyGroupState])
@@ -167,6 +237,37 @@ export function usePlayer(group: Group | undefined, _containerId?: string) {
     }
   }, [])
 
+  // Wake Lock: keep screen on while playing
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return
+
+    const requestWakeLock = async () => {
+      try {
+        const wakeLock = await navigator.wakeLock.request('screen')
+        wakeLockRef.current = wakeLock
+      } catch (err) {
+        console.warn('Wake Lock request failed:', err)
+      }
+    }
+
+    const releaseWakeLock = async () => {
+      if (wakeLockRef.current) {
+        await wakeLockRef.current.release()
+        wakeLockRef.current = null
+      }
+    }
+
+    if (isPlaying) {
+      requestWakeLock()
+    } else {
+      releaseWakeLock()
+    }
+
+    return () => {
+      releaseWakeLock()
+    }
+  }, [isPlaying])
+
   // Progress polling
   useEffect(() => {
     const id = setInterval(() => {
@@ -183,7 +284,9 @@ export function usePlayer(group: Group | undefined, _containerId?: string) {
   const togglePlay = useCallback(async () => {
     const groupId = groupIdRef.current
     const audio = audioRef.current
-    if (!groupId || !audio) return
+    if (!groupId || !audio) {
+      return
+    }
     const nowPlaying = !isPlaying
     await supabase.from('groups').update({
       is_playing: nowPlaying,

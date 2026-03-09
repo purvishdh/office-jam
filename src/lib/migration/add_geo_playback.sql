@@ -1,6 +1,4 @@
--- Add columns needed for proximity groups and synchronized playback
-ALTER TABLE groups ADD COLUMN IF NOT EXISTS lat double precision;
-ALTER TABLE groups ADD COLUMN IF NOT EXISTS lng double precision;
+-- Add columns needed for synchronized playback
 ALTER TABLE groups ADD COLUMN IF NOT EXISTS playback_started_at timestamptz;
 
 -- Ensure RLS is enabled with open policy (idempotent)

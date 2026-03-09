@@ -1,19 +1,28 @@
--- DROP old table if exists (safe)
-drop table if exists groups;
+-- CREATE groups table with correct schema (without location fields)
+-- Run this in your Supabase SQL Editor
 
--- ✅ CORRECTED: Single jsonb column (not array)
-create table groups (
-  id text primary key default gen_random_uuid(),
-  name text not null,
-  members uuid[] default '{}',
-  playlist jsonb default '[]',  -- ✅ Single jsonb with array INSIDE
-  current_index integer default 0,
-  is_playing boolean default false,
-  created_at timestamp default now()
+-- Create table if it doesn't exist
+CREATE TABLE IF NOT EXISTS groups (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  playlist jsonb DEFAULT '[]',
+  current_index integer DEFAULT 0,
+  is_playing boolean DEFAULT false,
+  playback_started_at timestamptz,
+  created_at timestamptz DEFAULT now()
 );
 
--- Enable realtime
-alter publication supabase_realtime add table groups;
+-- Remove old location columns if they exist
+ALTER TABLE groups DROP COLUMN IF EXISTS lat;
+ALTER TABLE groups DROP COLUMN IF EXISTS lng;
+ALTER TABLE groups DROP COLUMN IF EXISTS members;
 
--- RLS: Anyone can read/write (office jukebox)
-create policy "Public Access" on groups for all using (true);
+-- Enable RLS with public access policy
+ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policy if it exists and recreate
+DROP POLICY IF EXISTS "Public Access" ON groups;
+CREATE POLICY "Public Access" ON groups FOR ALL USING (true) WITH CHECK (true);
+
+-- Enable realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE groups;

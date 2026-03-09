@@ -1,11 +1,16 @@
 'use client'
+import Image from 'next/image'
 import { usePlayer } from '@/hooks/usePlayer'
 import type { Group } from '@/lib/types'
 
-const PLAYER_CONTAINER_ID = 'yt-player-container'
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60)
+  const secs = Math.floor(seconds % 60)
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
 
 export default function Player({ group }: { group: Group | undefined }) {
-  const { isPlaying, progress, currentSong, togglePlay, skipNext, skipPrev, seek } = usePlayer(group, PLAYER_CONTAINER_ID)
+  const { isPlaying, progress, duration, currentSong, togglePlay, skipNext, skipPrev, seek } = usePlayer(group)
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -13,28 +18,41 @@ export default function Player({ group }: { group: Group | undefined }) {
     seek(fraction)
   }
 
+  const currentTime = duration * progress
+
   return (
-    <div className="bg-white/10 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-white/20">
-      {/* YouTube IFrame API container — off-screen but real size so browsers allow audio */}
-      <div
-        id={PLAYER_CONTAINER_ID}
-        style={{ position: 'fixed', left: -9999, top: -9999, width: 320, height: 180, pointerEvents: 'none' }}
-      />
+    <div className="bg-gradient-to-br from-purple-900/30 via-violet-900/20 to-fuchsia-900/30 backdrop-blur-2xl rounded-3xl p-6 border border-purple-500/30 shadow-2xl shadow-purple-500/10">
+      <div className="flex items-center gap-2 mb-6">
+        <div className="h-1 w-1 rounded-full bg-purple-400 animate-pulse" />
+        <h3 className="text-lg font-bold text-purple-200">Now Playing</h3>
+      </div>
 
-      <h3 className="text-lg sm:text-2xl font-bold mb-4 sm:mb-6 text-center">🎛️ Now Playing</h3>
-
-      <div className="text-center mb-4 sm:mb-6">
+      <div className="mb-6">
         {currentSong ? (
-          <>
-            <img
-              src={currentSong.thumbnail}
-              alt={currentSong.title}
-              className="w-16 h-16 sm:w-24 sm:h-24 mx-auto rounded-lg sm:rounded-xl shadow-2xl mb-2 sm:mb-4 object-cover"
-            />
-            <p className="text-base sm:text-lg font-semibold truncate max-w-xs mx-auto">{currentSong.title}</p>
-          </>
+          <div className="space-y-4">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-fuchsia-500/20 rounded-2xl blur-xl group-hover:blur-2xl transition-all" />
+              <Image
+                src={currentSong.thumbnail}
+                alt={currentSong.title}
+                width={400}
+                height={225}
+                className="relative w-full aspect-video rounded-2xl shadow-2xl object-cover ring-1 ring-white/10"
+              />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-lg font-bold text-white line-clamp-2 leading-tight">{currentSong.title}</h4>
+              <div className="flex items-center justify-between text-xs text-purple-300">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+            </div>
+          </div>
         ) : (
-          <p className="text-base sm:text-xl opacity-75">Add first song to start 🎵</p>
+          <div className="text-center py-12 space-y-3">
+            <div className="text-5xl">🎵</div>
+            <p className="text-sm text-purple-300">Add your first song to start</p>
+          </div>
         )}
       </div>
 
@@ -68,6 +86,7 @@ export default function Player({ group }: { group: Group | undefined }) {
               ? 'bg-red-500 hover:bg-red-600 scale-110'
               : 'bg-green-500 hover:bg-green-600 hover:scale-110'
           }`}
+          title={!currentSong ? "Add a song to the playlist first" : isPlaying ? "Pause" : "Play"}
         >
           {isPlaying ? '⏸️' : '▶️'}
         </button>
