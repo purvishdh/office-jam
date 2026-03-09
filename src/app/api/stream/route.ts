@@ -16,12 +16,12 @@ export interface AudioSource {
 async function tryYouTubeMP36(videoId: string): Promise<AudioSource | null> {
   const rapidApiKey = process.env.RAPIDAPI_KEY
   if (!rapidApiKey) {
-    console.warn('❌ [YouTube MP36] No RAPIDAPI_KEY configured')
+    console.warn('[YouTube MP36] No RAPIDAPI_KEY configured')
     return null
   }
 
   try {
-    console.log(`🎵 Trying YouTube MP36 for ${videoId}`)
+    console.log(`[Stream] Trying YouTube MP36 for ${videoId}`)
     
     const response = await fetch(`https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`, {
       method: 'GET',
@@ -33,14 +33,14 @@ async function tryYouTubeMP36(videoId: string): Promise<AudioSource | null> {
     })
 
     if (!response.ok) {
-      console.warn(`❌ [YouTube MP36] HTTP ${response.status}: ${response.statusText}`)
+      console.warn(`[YouTube MP36] HTTP ${response.status}: ${response.statusText}`)
       return null
     }
 
     const data = await response.json()
     
     if (data.status === 'ok' && data.link) {
-      console.log(`✅ [YouTube MP36] Found audio stream`)
+      console.log(`[YouTube MP36] Found audio stream`)
       return {
         url: data.link,
         source: 'youtube-mp36',
@@ -50,11 +50,11 @@ async function tryYouTubeMP36(videoId: string): Promise<AudioSource | null> {
       }
     }
     
-    console.warn(`❌ [YouTube MP36] Invalid response: ${data.status || 'unknown'}`)
+    console.warn(`[YouTube MP36] Invalid response: ${data.status || 'unknown'}`)
     return null
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
-    console.warn(`❌ [YouTube MP36] failed:`, message)
+    console.warn(`[YouTube MP36] failed:`, message)
     return null
   }
 }
@@ -63,12 +63,12 @@ async function tryYouTubeMP36(videoId: string): Promise<AudioSource | null> {
 async function tryYouTubeDownloader(videoId: string): Promise<AudioSource | null> {
   const rapidApiKey = process.env.RAPIDAPI_KEY
   if (!rapidApiKey) {
-    console.warn('❌ [YouTube Downloader] No RAPIDAPI_KEY configured')
+    console.warn('[YouTube Downloader] No RAPIDAPI_KEY configured')
     return null
   }
 
   try {
-    console.log(`🎵 Trying YouTube Downloader for ${videoId}`)
+    console.log(`[Stream] Trying YouTube Downloader for ${videoId}`)
     
     const response = await fetch(`https://youtube-downloader-video.p.rapidapi.com/api/video/info?v=${videoId}`, {
       method: 'GET',
@@ -80,7 +80,7 @@ async function tryYouTubeDownloader(videoId: string): Promise<AudioSource | null
     })
 
     if (!response.ok) {
-      console.warn(`❌ [YouTube Downloader] HTTP ${response.status}: ${response.statusText}`)
+      console.warn(`[YouTube Downloader] HTTP ${response.status}: ${response.statusText}`)
       return null
     }
 
@@ -92,7 +92,7 @@ async function tryYouTubeDownloader(videoId: string): Promise<AudioSource | null
     )
     
     if (audioFormat?.url) {
-      console.log(`✅ [YouTube Downloader] Found audio: ${audioFormat.type}`)
+      console.log(`[YouTube Downloader] Found audio: ${audioFormat.type}`)
       return {
         url: audioFormat.url,
         source: 'youtube-downloader',
@@ -102,11 +102,11 @@ async function tryYouTubeDownloader(videoId: string): Promise<AudioSource | null
       }
     }
     
-    console.warn(`❌ [YouTube Downloader] No audio format found`)
+    console.warn(`[YouTube Downloader] No audio format found`)
     return null
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
-    console.warn(`❌ [YouTube Downloader] failed:`, message)
+    console.warn(`[YouTube Downloader] failed:`, message)
     return null
   }
 }
@@ -115,12 +115,12 @@ async function tryYouTubeDownloader(videoId: string): Promise<AudioSource | null
 async function tryYouTubeAudioVideoURL(videoId: string): Promise<AudioSource | null> {
   const rapidApiKey = process.env.RAPIDAPI_KEY
   if (!rapidApiKey) {
-    console.warn('❌ [YouTube Audio & Video URL] No RAPIDAPI_KEY configured')
+    console.warn('[YouTube Audio & Video URL] No RAPIDAPI_KEY configured')
     return null
   }
 
   try {
-    console.log(`🎵 Trying YouTube Audio & Video URL for ${videoId}`)
+    console.log(`[Stream] Trying YouTube Audio & Video URL for ${videoId}`)
     
     const response = await fetch(`https://youtube-audio-and-video-url.p.rapidapi.com/youtube?url=https://www.youtube.com/watch?v=${videoId}`, {
       method: 'GET',
@@ -132,7 +132,7 @@ async function tryYouTubeAudioVideoURL(videoId: string): Promise<AudioSource | n
     })
 
     if (!response.ok) {
-      console.warn(`❌ [YouTube Audio & Video URL] HTTP ${response.status}: ${response.statusText}`)
+      console.warn(`[YouTube Audio & Video URL] HTTP ${response.status}: ${response.statusText}`)
       return null
     }
 
@@ -142,7 +142,7 @@ async function tryYouTubeAudioVideoURL(videoId: string): Promise<AudioSource | n
     const audioUrl = data.audioUrl || data.audio_url || data.formats?.find((f: { type?: string; url?: string }) => f.type?.includes('audio'))?.url
     
     if (audioUrl) {
-      console.log(`✅ [YouTube Audio & Video URL] Found audio stream`)
+      console.log(`[YouTube Audio & Video URL] Found audio stream`)
       return {
         url: audioUrl,
         source: 'youtube-audio-video-url',
@@ -152,18 +152,18 @@ async function tryYouTubeAudioVideoURL(videoId: string): Promise<AudioSource | n
       }
     }
     
-    console.warn(`❌ [YouTube Audio & Video URL] No audio URL found`)
+    console.warn(`[YouTube Audio & Video URL] No audio URL found`)
     return null
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
-    console.warn(`❌ [YouTube Audio & Video URL] failed:`, message)
+    console.warn(`[YouTube Audio & Video URL] failed:`, message)
     return null
   }
 }
 
 // Final fallback: YouTube embed (no background audio, but never fails)
 function embedFallback(videoId: string): AudioSource {
-  console.log(`⚠️ Using YouTube embed fallback for ${videoId}`)
+  console.log(`[Stream] Using YouTube embed fallback for ${videoId}`)
   return {
     url: `https://www.youtube.com/embed/${videoId}?autoplay=1`,
     source: 'embed',
@@ -175,7 +175,7 @@ function embedFallback(videoId: string): AudioSource {
 
 // Main waterfall function - tries each RapidAPI method in order
 async function getAudioSource(videoId: string): Promise<AudioSource> {
-  console.log(`🔄 Starting RapidAPI audio source waterfall for ${videoId}`)
+  console.log(`[Stream] Starting RapidAPI audio source waterfall for ${videoId}`)
   
   const result =
     (await tryYouTubeMP36(videoId)) ??
@@ -183,10 +183,7 @@ async function getAudioSource(videoId: string): Promise<AudioSource> {
     (await tryYouTubeAudioVideoURL(videoId)) ??
     embedFallback(videoId)
 
-  console.log(`✅ Selected source: ${result.source} (streamable: ${result.isStreamable})`)
-  return result
-
-  console.log(`✅ Selected source: ${result.source} (streamable: ${result.isStreamable})`)
+  console.log(`[Stream] Selected source: ${result.source} (streamable: ${result.isStreamable})`)
   return result
 }
 
@@ -209,7 +206,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
-    console.error(`❌ Failed to get audio source for ${videoId}:`, err)
+    console.error(`[Stream] Failed to get audio source for ${videoId}:`, err)
     return NextResponse.json(
       { error: 'Failed to get audio source', details: message },
       { status: 500 }

@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Music, Rocket, PartyPopper } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import PublicGroups from '@/components/NearbyGroups'
 
@@ -21,12 +22,12 @@ export default function HomePage() {
       return
     }
     
-    console.log('🚀 Starting to create group for:', name.trim())
+    console.log('[Create Group] Starting for:', name.trim())
     setCreating(true)
     localStorage.setItem('jukebox-name', name.trim())
 
     try {
-      console.log('📡 Calling Supabase to create group...')
+      console.log('[Create Group] Calling Supabase...')
       const { data, error } = await supabase
         .from('groups')
         .insert({
@@ -35,10 +36,10 @@ export default function HomePage() {
         .select('id')
         .single()
 
-      console.log('📡 Supabase response:', { data, error })
+      console.log('[Create Group] Supabase response:', { data, error })
 
       if (error) {
-        console.error('❌ Supabase error details:', {
+        console.error('[Create Group] Supabase error details:', {
           message: error.message,
           details: error.details,
           hint: error.hint,
@@ -50,16 +51,16 @@ export default function HomePage() {
       }
 
       if (!data) {
-        console.error('❌ No data returned from Supabase')
+        console.error('[Create Group] No data returned from Supabase')
         alert('Failed to create party: No data returned')
         setCreating(false)
         return
       }
 
-      console.log('✅ Group created successfully, navigating to:', data.id)
+      console.log('[Create Group] Success, navigating to:', data.id)
       router.push(`/group/${data.id}?name=${encodeURIComponent(name.trim())}`)
     } catch (err) {
-      console.error('❌ Network error:', err)
+      console.error('[Create Group] Network error:', err)
       setCreating(false)
     }
   }
@@ -71,14 +72,14 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-900 text-white">
+    <div className="min-h-screen w-full relative overflow-y-auto transition-colors duration-1000 [&::-webkit-scrollbar]:hidden bg-linear-to-br from-gray-900 via-gray-950 to-black text-white">
       <div className="container mx-auto px-3 py-6 sm:px-4 sm:py-12 max-w-lg">
-        <h1 className="text-4xl sm:text-6xl font-black text-center mb-2 sm:mb-4 text-white">
-          🎵
+        <h1 className="text-4xl sm:text-6xl font-black text-center mb-2 sm:mb-4 text-white flex justify-center">
+          <Music className="w-10 h-10 sm:w-14 sm:h-14" />
         </h1>
         <p className="text-center text-sm sm:text-base opacity-70 mb-6 sm:mb-12">Collaborative music for your office</p>
 
-        <div className="bg-white/10 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-5 sm:p-8 border border-white/20 space-y-4 sm:space-y-6">
+        <div className="bg-white/10 backdrop-blur-2xl rounded-2xl sm:rounded-3xl p-5 sm:p-8 space-y-4 sm:space-y-6 border border-white/20 shadow-2xl">
           {/* Name input */}
           <div>
             <label className="block text-xs sm:text-sm font-medium mb-2 opacity-80">Your name</label>
@@ -87,7 +88,7 @@ export default function HomePage() {
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && createGroup()}
               placeholder="e.g. Alex"
-              className="w-full p-3 sm:p-4 bg-white/20 rounded-lg sm:rounded-xl text-base sm:text-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              className="w-full p-3 sm:p-4 bg-surface-500 border border-surface-400 rounded-lg sm:rounded-xl text-base sm:text-lg text-white placeholder-muted-400 focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
           </div>
 
@@ -95,15 +96,15 @@ export default function HomePage() {
           <button
             onClick={createGroup}
             disabled={!name.trim() || creating}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-base sm:text-xl px-4 sm:px-8 py-3 sm:py-5 rounded-lg sm:rounded-2xl font-bold shadow-lg hover:scale-105 disabled:hover:scale-100 transition-all duration-300"
+            className="w-full bg-white/20 hover:bg-white/30 backdrop-blur-xl disabled:bg-white/5 disabled:opacity-50 text-base sm:text-xl px-4 sm:px-8 py-3 sm:py-5 rounded-lg sm:rounded-2xl font-bold shadow-lg hover:scale-105 disabled:hover:scale-100 transition-all duration-300 border border-white/30 inline-flex items-center justify-center gap-2"
           >
-            {creating ? 'Creating…' : '🚀 Start Office Music Party'}
+            {creating ? 'Creating…' : <><Rocket className="w-4 h-4 sm:w-5 sm:h-5" />Start Office Music Party</>}
           </button>
 
           {/* OR divider */}
           <div className="relative flex items-center justify-center">
             <div className="absolute inset-x-0 h-px bg-white/20"></div>
-            <div className="relative bg-zinc-900 px-4 text-xs sm:text-sm opacity-60">OR</div>
+            <div className="relative bg-linear-to-br from-brand-500 via-brand-400/90 to-brand-600 px-4 text-xs sm:text-sm text-white/80">OR</div>
           </div>
 
           {/* Join by ID */}
@@ -114,14 +115,15 @@ export default function HomePage() {
               onChange={(e) => setGroupId(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && joinGroup()}
               placeholder="Enter party ID"
-              className="w-full p-3 sm:p-4 bg-white/20 rounded-lg sm:rounded-xl text-base sm:text-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              className="w-full p-3 sm:p-4 bg-surface-500 border border-surface-400 rounded-lg sm:rounded-xl text-base sm:text-lg text-white placeholder-muted-400 focus:outline-none focus:ring-2 focus:ring-brand-400"
             />
             <button
               onClick={joinGroup}
               disabled={!name.trim() || !groupId.trim()}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-base sm:text-lg px-4 py-3 rounded-lg sm:rounded-xl font-semibold transition-all"
+              className="w-full bg-white/20 hover:bg-white/30 backdrop-blur-xl disabled:bg-white/5 disabled:opacity-50 text-base sm:text-lg px-4 py-3 rounded-lg sm:rounded-xl font-semibold transition-all border border-white/30 inline-flex items-center justify-center gap-2"
             >
-              🎉 Join Party
+              <PartyPopper className="w-4 h-4" />
+              Join Party
             </button>
           </div>
 

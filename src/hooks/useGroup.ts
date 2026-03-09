@@ -26,7 +26,7 @@ export function useGroup(groupId: string) {
   useEffect(() => {
     if (!groupId) return
 
-    console.log('🔗 Setting up real-time subscription for group:', groupId)
+    console.log('[Realtime] Setting up subscription for group:', groupId)
 
     const channel = supabase
       .channel(`group-changes:${groupId}`)
@@ -34,16 +34,16 @@ export function useGroup(groupId: string) {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'groups', filter: `id=eq.${groupId}` },
         (payload) => {
-          console.log('📡 Received real-time group update:', payload.new)
+          console.log('[Realtime] Received group update:', payload.new)
           queryClient.setQueryData(['group', groupId], payload.new as Group)
         }
       )
       .subscribe((status) => {
-        console.log('📡 Subscription status:', status)
+        console.log('[Realtime] Subscription status:', status)
       })
 
     return () => { 
-      console.log('🔌 Removing real-time subscription for group:', groupId)
+      console.log('[Realtime] Removing subscription for group:', groupId)
       supabase.removeChannel(channel) 
     }
   }, [groupId, queryClient])

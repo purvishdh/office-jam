@@ -60,7 +60,7 @@ export default function PublicGroups({ onJoin }: Props) {
         <button
           key={g.id}
           onClick={() => onJoin(g.id)}
-          className="w-full flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 transition-all text-sm sm:text-base"
+          className="w-full flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 transition-all text-sm sm:text-base cursor-pointer"
         >
           <span className="font-medium truncate">{g.name}</span>
           <span className="text-xs sm:text-sm opacity-60 ml-2">{g.playlist?.length ?? 0} songs</span>

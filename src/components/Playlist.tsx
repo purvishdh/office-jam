@@ -1,6 +1,8 @@
 'use client'
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Music, ListMusic, ThumbsUp, X, Loader2 } from 'lucide-react'
+import EmptyState from '@/components/ui/EmptyState'
 import {
   DragDropContext,
   Droppable,
@@ -88,13 +90,14 @@ export default function Playlist({ group }: Props) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="bg-white/10 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-8 border border-white/20 overflow-hidden">
+      <div className="bg-surface-200 border border-surface-400 rounded-2xl sm:rounded-3xl p-4 sm:p-8 overflow-hidden">
         <h2 className="text-xl sm:text-3xl font-bold mb-4 sm:mb-8 flex items-center gap-2 sm:gap-3 truncate">
-          🎧 Playlist ({songs.length})
+          <Music className="w-6 h-6 sm:w-8 sm:h-8" />
+          <span>Playlist ({songs.length})</span>
         </h2>
 
         <div
-          className="border-4 border-dashed border-purple-400 rounded-lg sm:rounded-2xl p-4 sm:p-8 mb-4 sm:mb-8 text-center hover:border-purple-300 transition-all bg-purple-500/20 overflow-hidden"
+          className="border-4 border-dashed border-brand-400 rounded-lg sm:rounded-2xl p-4 sm:p-8 mb-4 sm:mb-8 text-center hover:border-brand-300 transition-all bg-brand-500/20 overflow-hidden"
           onDrop={(e) => {
             e.preventDefault()
             const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')
@@ -106,21 +109,24 @@ export default function Playlist({ group }: Props) {
             if (url?.includes('youtube.com')) addSongMutation.mutate(url)
           }}
         >
-          <p className="text-sm sm:text-xl mb-3 sm:mb-4">🎵 Drag YouTube links here or paste</p>
+          <p className="text-sm sm:text-xl mb-3 sm:mb-4 flex items-center justify-center gap-2">
+            <Music className="w-5 h-5" />
+            <span>Drag YouTube links here or paste</span>
+          </p>
           <div className="flex flex-col sm:flex-row gap-2 max-w-lg mx-auto">
             <input
               value={inputUrl}
               onChange={(e) => setInputUrl(e.target.value)}
-              className="flex-1 p-2 sm:p-3 bg-white/20 rounded-lg sm:rounded-xl text-white placeholder-white/50 text-sm sm:text-base min-w-0"
+              className="flex-1 p-2 sm:p-3 bg-surface-500 border border-surface-400 rounded-lg sm:rounded-xl text-white placeholder-muted-400 text-sm sm:text-base min-w-0"
               placeholder="https://youtube.com/watch?v=..."
               onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             />
             <button
               onClick={handleAdd}
               disabled={addSongMutation.isPending}
-              className="px-4 sm:px-5 py-2 sm:py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg sm:rounded-xl font-bold transition-all text-sm sm:text-base whitespace-nowrap"
+              className="px-3 border w-full max-w-25 mx-auto sm:px-5 py-2 sm:py-3 bg-brand-400 hover:bg-brand-500 disabled:opacity-50 rounded-lg sm:rounded-xl font-bold transition-all text-sm sm:text-base whitespace-nowrap cursor-pointer disabled:cursor-not-allowed"
             >
-              {addSongMutation.isPending ? '…' : 'Add'}
+              {addSongMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin text-center mx-auto" /> : 'Add'}
             </button>
           </div>
         </div>
@@ -131,7 +137,7 @@ export default function Playlist({ group }: Props) {
               {...provided.droppableProps}
               ref={provided.innerRef}
               className={`space-y-2 sm:space-y-4 max-h-60 sm:max-h-96 overflow-y-auto p-2 rounded-lg sm:rounded-2xl transition-all ${
-                snapshot.isDraggingOver ? 'bg-purple-500/20' : 'bg-transparent'
+                snapshot.isDraggingOver ? 'bg-brand-500/20' : 'bg-transparent'
               }`}
             >
               {songs.map((song, index) => (
@@ -144,36 +150,37 @@ export default function Playlist({ group }: Props) {
                       style={provided.draggableProps.style}
                       className={`p-2 sm:p-4 rounded-lg sm:rounded-2xl border transition-all flex items-center gap-2 sm:gap-4 cursor-grab active:cursor-grabbing overflow-hidden ${
                         index === (group.current_index ?? 0)
-                          ? 'border-yellow-400/60 bg-yellow-500/10'
+                          ? 'border-brand-400/60 bg-brand-400/10'
                           : snapshot.isDragging
-                          ? 'shadow-2xl scale-105 bg-violet-700'
-                          : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'
+                          ? 'shadow-2xl scale-105 bg-brand-500'
+                          : 'bg-surface-300 hover:bg-surface-400 border-surface-400 hover:border-brand-400/40'
                       }`}
                     >
-                      <span className="text-lg sm:text-xl font-black flex-shrink-0 w-6 sm:w-8 text-purple-400">{index + 1}</span>
+                      <span className="text-lg sm:text-xl font-black shrink-0 w-6 sm:w-8 text-brand-400">{index + 1}</span>
                       <Image
                         src={song.thumbnail}
                         alt={song.title}
                         width={56}
                         height={56}
-                        className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl object-cover shadow-lg flex-shrink-0"
+                        className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl object-cover shadow-lg shrink-0"
                       />
                       <div className="flex-1 min-w-0 overflow-hidden">
                         <p className="text-sm sm:text-base font-semibold truncate">{song.title}</p>
                         <p className="text-xs sm:text-sm opacity-60">{Math.floor(song.duration / 60)}:{String(song.duration % 60).padStart(2, '0')}</p>
                       </div>
-                      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                         <button
                           onClick={() => voteMutation.mutate(song.id)}
-                          className="px-2 sm:px-3 py-1 sm:py-1.5 bg-purple-500 hover:bg-purple-600 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap"
+                          className="px-2 sm:px-3 py-1 sm:py-1.5 bg-brand-400 hover:bg-brand-500 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap inline-flex items-center gap-1 cursor-pointer hover:scale-105"
                         >
-                          👍 {song.votes}
+                          <ThumbsUp className="w-4 h-4" />
+                          {song.votes}
                         </button>
                         <button
                           onClick={() => removeSongMutation.mutate(song.id)}
-                          className="px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500/40 hover:bg-red-500/70 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all flex-shrink-0"
+                          className="px-2 sm:px-3 py-2 sm:py-2.5 bg-red-500/40 hover:bg-red-500/70 rounded-lg sm:rounded-xl text-xs sm:text-sm transition-all shrink-0 inline-flex items-center justify-center cursor-pointer"
                         >
-                          ✕
+                          <X className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -182,7 +189,13 @@ export default function Playlist({ group }: Props) {
               ))}
               {provided.placeholder}
               {songs.length === 0 && (
-                <p className="text-center opacity-50 py-8">Queue is empty — add a song!</p>
+                <EmptyState
+                  icon={ListMusic}
+                  title="Queue is empty"
+                  description="Add a song to get the party started!"
+                  size="md"
+                  className="py-8"
+                />
               )}
             </div>
           )}

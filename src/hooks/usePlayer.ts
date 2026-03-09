@@ -39,16 +39,25 @@ export function usePlayer(group: Group | undefined) {
     audioRef.current = audio
 
     // Auto-advance to next song when current one ends
-    const handleEnded = () => {
+    const handleEnded = async () => {
       const g = groupRef.current
-      if (!g) return
+      const groupId = groupIdRef.current
+      if (!g || !groupId) return
+      
       const nextIdx = (g.current_index ?? 0) + 1
       if (nextIdx < g.playlist.length) {
-        supabase.from('groups').update({
-          current_index: nextIdx,
-          is_playing: true,
-          playback_started_at: new Date().toISOString(),
-        }).eq('id', groupIdRef.current!)
+        console.log(`[Audio] Song ended, auto-advancing from index ${g.current_index} to ${nextIdx}`)
+        try {
+          await supabase.from('groups').update({
+            current_index: nextIdx,
+            is_playing: true,
+            playback_started_at: new Date().toISOString(),
+          }).eq('id', groupId)
+        } catch (err) {
+          console.error('[Audio] Failed to auto-advance:', err)
+        }
+      } else {
+        console.log('[Audio] Reached end of playlist')
       }
     }
 
@@ -58,8 +67,8 @@ export function usePlayer(group: Group | undefined) {
       const song: Song | undefined = g?.playlist[g?.current_index ?? 0]
       if (!song?.video_id || !g) return
 
-      console.error('🚨 Audio playback error detected for:', song.title)
-      console.error('📄 Error details:', {
+      console.error('[Audio] Playback error detected for:', song.title)
+      console.error('[Audio] Error details:', {
         src: audio.src,
         networkState: audio.networkState,
         readyState: audio.readyState,
@@ -67,7 +76,7 @@ export function usePlayer(group: Group | undefined) {
       })
       
       try {
-        console.log('🔄 Attempting to refresh stream URL...')
+        console.log('[Audio] Attempting to refresh stream URL...')
         
         // Fetch fresh stream URL
         const streamRes = await fetch(`/api/stream?v=${song.video_id}`)
@@ -77,7 +86,7 @@ export function usePlayer(group: Group | undefined) {
         }
         
         const streamData = await streamRes.json()
-        console.log('✅ Got fresh stream data:', streamData)
+        console.log('[Audio] Got fresh stream data:', streamData)
         
         // Calculate elapsed time from playback_started_at
         const elapsed = g.playback_started_at
@@ -95,9 +104,9 @@ export function usePlayer(group: Group | undefined) {
           await audio.play()
         }
 
-        console.log('✅ Stream URL refreshed successfully')
+        console.log('[Audio] Stream URL refreshed successfully')
       } catch (err) {
-        console.error('❌ Failed to recover from stream error:', err)
+        console.error('[Audio] Failed to recover from stream error:', err)
       }
     }
 
@@ -153,7 +162,7 @@ export function usePlayer(group: Group | undefined) {
         audio.currentTime = Math.max(0, elapsed)
       }
       audio.play().catch((err) => {
-        console.warn('❌ Autoplay blocked or audio failed:', err.message)
+        console.warn('[Audio] Autoplay blocked or audio failed:', err.message)
         // Show toast notification on first autoplay block
         if (typeof window !== 'undefined' && !sessionStorage.getItem('autoplay-warned')) {
           sessionStorage.setItem('autoplay-warned', '1')
@@ -268,14 +277,35 @@ export function usePlayer(group: Group | undefined) {
     }
   }, [isPlaying])
 
-  // Progress polling
+  // Progress polling with auto-advance fallback
   useEffect(() => {
     const id = setInterval(() => {
       const audio = audioRef.current
+      const g = groupRef.current
+      const groupId = groupIdRef.current
+      
       if (!audio) return
+      
       if (audio.duration > 0) {
         setProgress(audio.currentTime / audio.duration)
         setDuration(audio.duration)
+        
+        // Fallback auto-advance: if song is playing and near the end (>99.5% done),
+        // auto-advance to next song. This catches cases where 'ended' event doesn't fire.
+        if (g && groupId && g.is_playing) {
+          const progress = audio.currentTime / audio.duration
+          if (progress > 0.995 && audio.duration > 2) {
+            const nextIdx = (g.current_index ?? 0) + 1
+            if (nextIdx < g.playlist.length) {
+              console.log(`[Audio] Auto-advance fallback triggered at ${(progress * 100).toFixed(1)}% of song`)
+              supabase.from('groups').update({
+                current_index: nextIdx,
+                is_playing: true,
+                playback_started_at: new Date().toISOString(),
+              }).eq('id', groupId)
+            }
+          }
+        }
       }
     }, 500)
     return () => clearInterval(id)
