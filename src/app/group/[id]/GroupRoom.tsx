@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useGroup } from '@/hooks/useGroup'
 import { useMembers } from '@/hooks/useMembers'
+import { useDJMode } from '@/hooks/useDJMode'
 import Playlist from '@/components/Playlist'
 import Player from '@/components/Player'
 import QRCodeComponent from '@/components/QRCode'
@@ -9,7 +10,7 @@ import MemberList from '@/components/MemberList'
 import NameInput from '@/components/NameInput'
 import Loading from '@/components/ui/Loading'
 import EmptyState from '@/components/ui/EmptyState'
-import { AlertCircle, Music } from 'lucide-react'
+import { AlertCircle, Music, Crown } from 'lucide-react'
 
 interface Props {
   groupId: string
@@ -45,6 +46,7 @@ export default function GroupRoom({ groupId, nameParam }: Props) {
 
   const { data: group, isLoading } = useGroup(groupId)
   const members = useMembers(groupId, memberName)
+  const { toggleDJMode, isTogglingDJ } = useDJMode(group, memberName)
 
   if (isLoading) {
     return (
@@ -91,6 +93,21 @@ export default function GroupRoom({ groupId, nameParam }: Props) {
             </div>
             
             <div className="flex items-center space-x-3">
+              <button
+                onClick={toggleDJMode}
+                disabled={isTogglingDJ}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all font-medium text-sm ${
+                  group?.dj_mode
+                    ? 'bg-brand-500 hover:bg-brand-600 text-white ring-2 ring-brand-400'
+                    : 'bg-surface-200 hover:bg-surface-300 text-muted-200'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                title={group?.dj_mode ? `DJ Mode ON - ${group.dj_name} controls playback` : 'Enable DJ Mode'}
+              >
+                <Crown className="w-4 h-4" />
+                <span className="hidden sm:inline">
+                  {group?.dj_mode ? 'DJ Mode' : 'Open Mode'}
+                </span>
+              </button>
               <div className="hidden sm:flex items-center space-x-2 bg-surface-200 rounded-lg px-3 py-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                 <span className="text-sm text-muted-200 font-medium">{memberName}</span>
@@ -119,9 +136,9 @@ export default function GroupRoom({ groupId, nameParam }: Props) {
           
           {/* Right Column - Player & Sidebar */}
           <div className="xl:col-span-5 space-y-6">
-            <Player group={group} totalMembers={members.length} />
+            <Player group={group} totalMembers={members.length} memberName={memberName} />
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-6">
-            <MemberList members={members} />
+            <MemberList members={members} group={group} />
             <QRCodeComponent groupId={groupId} />
           </div>
         </div>

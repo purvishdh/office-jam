@@ -19,6 +19,8 @@ export interface Group {
   current_index: number
   is_playing: boolean
   playback_started_at: string | null
+  dj_mode?: boolean
+  dj_name?: string
   created_at: string
 }
 

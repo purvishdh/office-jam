@@ -2,6 +2,7 @@
 import Image from "next/image";
 import { Play, Pause, SkipBack, SkipForward, Music } from "lucide-react";
 import { usePlayer } from "@/hooks/usePlayer";
+import { useDJMode } from "@/hooks/useDJMode";
 import EmptyState from "@/components/ui/EmptyState";
 import type { Group } from "@/lib/types";
 
@@ -14,9 +15,10 @@ function formatTime(seconds: number): string {
 interface PlayerProps {
   group: Group | undefined
   totalMembers?: number
+  memberName: string
 }
 
-export default function Player({ group, totalMembers = 0 }: PlayerProps) {
+export default function Player({ group, totalMembers = 0, memberName }: PlayerProps) {
   const {
     isPlaying,
     progress,
@@ -27,6 +29,9 @@ export default function Player({ group, totalMembers = 0 }: PlayerProps) {
     skipPrev,
     seek,
   } = usePlayer(group, totalMembers);
+  
+  const { isDJ, djName } = useDJMode(group, memberName);
+  const canControl = !group?.dj_mode || isDJ;
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -102,44 +107,57 @@ export default function Player({ group, totalMembers = 0 }: PlayerProps) {
       </div>
 
       <div className="flex items-center justify-center gap-5 sm:gap-4">
-        <button
-          onClick={skipPrev}
-          disabled={!currentSong}
-          className="px-3 border-2 sm:px-5 py-2 sm:py-3 bg-surface-300 hover:bg-surface-400 disabled:opacity-30 rounded-lg sm:rounded-2xl font-bold text-base sm:text-lg transition-all cursor-pointer disabled:cursor-not-allowed"
-        >
-          <SkipBack className="w-5 h-5" />
-        </button>
+        {canControl ? (
+          <>
+            <button
+              onClick={skipPrev}
+              disabled={!currentSong}
+              className="px-3 border-2 sm:px-5 py-2 sm:py-3 bg-surface-300 hover:bg-surface-400 disabled:opacity-30 rounded-lg sm:rounded-2xl font-bold text-base sm:text-lg transition-all cursor-pointer disabled:cursor-not-allowed"
+            >
+              <SkipBack className="w-5 h-5" />
+            </button>
 
-        <button
-          onClick={togglePlay}
-          disabled={!currentSong}
-          className={`w-16 h-16 border-2 sm:w-20 sm:h-20 rounded-full text-2xl sm:text-3xl font-black shadow-2xl transition-all duration-300 flex items-center justify-center disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed ${
-            isPlaying
-              ? "bg-brand-500 hover:bg-brand-600 scale-110"
-              : "bg-brand-400 hover:bg-brand-500 hover:scale-110"
-          }`}
-          title={
-            !currentSong
-              ? "Add a song to the playlist first"
-              : isPlaying
-                ? "Pause"
-                : "Play"
-          }
-        >
-          {isPlaying ? (
-            <Pause className="w-6 h-6" />
-          ) : (
-            <Play className="w-6 h-6" />
-          )}
-        </button>
+            <button
+              onClick={togglePlay}
+              disabled={!currentSong}
+              className={`w-16 h-16 border-2 sm:w-20 sm:h-20 rounded-full text-2xl sm:text-3xl font-black shadow-2xl transition-all duration-300 flex items-center justify-center disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed ${
+                isPlaying
+                  ? "bg-brand-500 hover:bg-brand-600 scale-110"
+                  : "bg-brand-400 hover:bg-brand-500 hover:scale-110"
+              }`}
+              title={
+                !currentSong
+                  ? "Add a song to the playlist first"
+                  : isPlaying
+                    ? "Pause"
+                    : "Play"
+              }
+            >
+              {isPlaying ? (
+                <Pause className="w-6 h-6" />
+              ) : (
+                <Play className="w-6 h-6" />
+              )}
+            </button>
 
-        <button
-          onClick={skipNext}
-          disabled={!currentSong}
-          className="px-3 sm:px-5 border-2 py-2 sm:py-3 bg-surface-300 hover:bg-surface-400 disabled:opacity-30 rounded-lg sm:rounded-2xl font-bold text-base sm:text-lg transition-all cursor-pointer disabled:cursor-not-allowed"
-        >
-          <SkipForward className="w-5 h-5" />
-        </button>
+            <button
+              onClick={skipNext}
+              disabled={!currentSong}
+              className="px-3 sm:px-5 border-2 py-2 sm:py-3 bg-surface-300 hover:bg-surface-400 disabled:opacity-30 rounded-lg sm:rounded-2xl font-bold text-base sm:text-lg transition-all cursor-pointer disabled:cursor-not-allowed"
+            >
+              <SkipForward className="w-5 h-5" />
+            </button>
+          </>
+        ) : (
+          <div className="text-center py-6 px-4">
+            <div className="text-lg sm:text-xl font-semibold text-white/90 mb-1">
+              🎧 {djName} is controlling playback
+            </div>
+            <div className="text-xs sm:text-sm text-white/60">
+              You can still add songs and vote
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

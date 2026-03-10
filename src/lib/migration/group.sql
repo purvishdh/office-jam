@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS groups (
   current_index integer DEFAULT 0,
   is_playing boolean DEFAULT false,
   playback_started_at timestamptz,
+  dj_mode boolean DEFAULT false,
+  dj_name text,
   created_at timestamptz DEFAULT now()
 );
 
