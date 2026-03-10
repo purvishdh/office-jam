@@ -139,12 +139,14 @@ export function useVoting(
         playlist: newPlaylist,
       };
 
-      // Update current_index if it changed
-      if (removedSong && newCurrentIndex !== group.current_index) {
+      if (removedSong) {
+        const removedIndex = songs.findIndex((s) => s.id === songId);
         updates.current_index = newCurrentIndex;
-        // If currently playing song was removed, restart playback timestamp
-        if (songs.findIndex((s) => s.id === songId) === group.current_index) {
-          updates.playback_started_at = new Date().toISOString();
+
+        // Always reset playback when the currently playing song is removed
+        if (removedIndex === (group.current_index ?? 0)) {
+          updates.playback_started_at = newPlaylist.length > 0 ? new Date().toISOString() : null;
+          updates.is_playing = newPlaylist.length > 0 ? group.is_playing : false;
         }
       }
 

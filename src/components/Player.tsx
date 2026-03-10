@@ -31,7 +31,8 @@ export default function Player({ group, totalMembers = 0, memberName }: PlayerPr
   } = usePlayer(group, totalMembers);
   
   const { isDJ, djName } = useDJMode(group, memberName);
-  const canControl = !group?.dj_mode || isDJ;
+  // Show controls if: no memberName yet (loading), no DJ mode, or user is DJ
+  const canControl = !memberName || !group?.dj_mode || isDJ;
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

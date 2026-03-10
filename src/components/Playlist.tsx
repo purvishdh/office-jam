@@ -80,11 +80,14 @@ export default function Playlist({ group, memberName, totalMembers }: Props) {
       }
       
       const updates: Partial<Group> = { playlist: newPlaylist }
-      if (newCurrentIndex !== currentIndex) {
+      
+      // Always reset playback when removing currently playing song
+      if (removedIndex === currentIndex) {
         updates.current_index = newCurrentIndex
-        if (removedIndex === currentIndex) {
-          updates.playback_started_at = new Date().toISOString()
-        }
+        updates.playback_started_at = newPlaylist.length > 0 ? new Date().toISOString() : null
+        updates.is_playing = newPlaylist.length > 0 ? group.is_playing : false
+      } else if (newCurrentIndex !== currentIndex) {
+        updates.current_index = newCurrentIndex
       }
       
       const { error } = await supabase

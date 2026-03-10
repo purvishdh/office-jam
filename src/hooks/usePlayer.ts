@@ -35,6 +35,7 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
   const groupIdRef = useRef<string | undefined>(group?.id)
   const totalMembersRef = useRef<number>(totalMembers)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  const autoAdvancingRef = useRef(false)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -161,10 +162,6 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
       // Let the error handler refresh it
     }
 
-    const elapsed = g.playback_started_at
-      ? (Date.now() - new Date(g.playback_started_at).getTime()) / 1000
-      : 0
-
     const urlChanged = song.piped_url !== loadedUrlRef.current
 
     if (urlChanged) {
@@ -174,13 +171,22 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
       audio.load()
     }
 
+    // Calculate elapsed time - but if URL just changed, treat timestamp as fresh
+    const elapsed = g.playback_started_at
+      ? (Date.now() - new Date(g.playback_started_at).getTime()) / 1000
+      : 0
+
+    // When song changes, only use elapsed time if it's recent (within 5 seconds)
+    // This prevents using old timestamp when song was just removed/skipped
+    const safeElapsed = urlChanged && elapsed > 5 ? 0 : elapsed
+
     if (g.is_playing) {
       // Re-sync position if we're off by more than 2 seconds
-      if (!urlChanged && Math.abs(audio.currentTime - elapsed) > 2) {
-        console.log('[Audio] Re-syncing playback position:', elapsed)
-        audio.currentTime = Math.max(0, elapsed)
+      if (!urlChanged && Math.abs(audio.currentTime - safeElapsed) > 2) {
+        console.log('[Audio] Re-syncing playback position:', safeElapsed)
+        audio.currentTime = Math.max(0, safeElapsed)
       } else if (urlChanged) {
-        audio.currentTime = Math.max(0, elapsed)
+        audio.currentTime = Math.max(0, safeElapsed)
       }
       
       const playPromise = audio.play()
@@ -355,17 +361,20 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
         
         // Fallback auto-advance: if song is playing and near the end (>99.5% done),
         // auto-advance to next song. This catches cases where 'ended' event doesn't fire.
-        if (g && groupId && g.is_playing) {
+        if (g && groupId && g.is_playing && !autoAdvancingRef.current) {
           const progress = audio.currentTime / audio.duration
           if (progress > 0.995 && audio.duration > 2) {
             const nextIdx = (g.current_index ?? 0) + 1
             if (nextIdx < g.playlist.length) {
+              autoAdvancingRef.current = true
               console.log(`[Audio] Auto-advance fallback triggered at ${(progress * 100).toFixed(1)}% of song`)
               supabase.from('groups').update({
                 current_index: nextIdx,
                 is_playing: true,
                 playback_started_at: new Date().toISOString(),
-              }).eq('id', groupId)
+              }).eq('id', groupId).then(() => {
+                autoAdvancingRef.current = false
+              })
             }
           }
         }
@@ -431,8 +440,18 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
 
   const seek = useCallback((fraction: number) => {
     const audio = audioRef.current
+    const groupId = groupIdRef.current
+    const g = groupRef.current
     if (!audio || !isFinite(audio.duration) || audio.duration <= 0) return
-    audio.currentTime = Math.max(0, Math.min(fraction * audio.duration, audio.duration))
+    const newTime = Math.max(0, Math.min(fraction * audio.duration, audio.duration))
+    audio.currentTime = newTime
+
+    // Sync seek to Supabase so other devices see the new position
+    if (groupId && g?.is_playing) {
+      supabase.from('groups').update({
+        playback_started_at: new Date(Date.now() - newTime * 1000).toISOString(),
+      }).eq('id', groupId)
+    }
   }, [])
 
   const currentSong: Song | undefined = group?.playlist[group?.current_index ?? 0]
