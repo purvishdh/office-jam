@@ -1,0 +1,178 @@
+/* Glassmorphism Tour Styles for Driver.js */
+
+.driver-popover.jukebox-tour-popover {
+  background: rgba(15, 23, 42, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 
+              0 0 0 1px rgba(255, 255, 255, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  padding: 0 !important;
+  max-width: 420px !important;
+}
+
+.driver-popover.jukebox-tour-popover.driver-popover-side-center {
+  max-width: 500px !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-title {
+  color: #ffffff !important;
+  font-size: 1.25rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 12px !important;
+  padding: 24px 24px 0 24px !important;
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  line-height: 1.4 !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-description {
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-size: 0.95rem !important;
+  line-height: 1.6 !important;
+  padding: 0 24px !important;
+  margin-bottom: 20px !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-footer {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 16px 24px !important;
+  border-radius: 0 0 24px 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-progress-text {
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* Buttons */
+.driver-popover.jukebox-tour-popover .driver-popover-footer button {
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 10px 20px !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3) !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-footer button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4) !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-prev-btn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-prev-btn:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1) !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-close-btn {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #fca5a5 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  position: absolute !important;
+  top: 16px !important;
+  right: 16px !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  padding: 0 !important;
+  font-size: 18px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-close-btn:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Arrow */
+.driver-popover.jukebox-tour-popover .driver-popover-arrow {
+  display: none !important;
+}
+
+.driver-popover.jukebox-tour-popover .driver-popover-arrow-side-left,
+.driver-popover.jukebox-tour-popover .driver-popover-arrow-side-right,
+.driver-popover.jukebox-tour-popover .driver-popover-arrow-side-top,
+.driver-popover.jukebox-tour-popover .driver-popover-arrow-side-bottom {
+  border-color: rgba(15, 23, 42, 0.85) !important;
+}
+
+/* Highlighted element */
+.driver-active-element {
+  border-radius: 16px !important;
+}
+
+/* Overlay */
+.driver-overlay {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* Animations */
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.driver-popover.jukebox-tour-popover {
+  animation: fadeInScale 0.3s ease !important;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .driver-popover.jukebox-tour-popover {
+    max-width: 90vw !important;
+    border-radius: 20px !important;
+  }
+  
+  .driver-popover.jukebox-tour-popover .driver-popover-title {
+    font-size: 1.1rem !important;
+    padding: 20px 20px 0 20px !important;
+  }
+  
+  .driver-popover.jukebox-tour-popover .driver-popover-description {
+    font-size: 0.9rem !important;
+    padding: 0 20px !important;
+  }
+  
+  .driver-popover.jukebox-tour-popover .driver-popover-footer {
+    padding: 12px 20px !important;
+    flex-wrap: wrap !important;
+  }
+  
+  .driver-popover.jukebox-tour-popover .driver-popover-footer button {
+    padding: 8px 16px !important;
+    font-size: 0.85rem !important;
+  }
+}

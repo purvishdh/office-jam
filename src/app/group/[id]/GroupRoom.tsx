@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useGroup } from '@/hooks/useGroup'
 import { useMembers } from '@/hooks/useMembers'
 import { useDJMode } from '@/hooks/useDJMode'
+import { useAppTour } from '@/hooks/useAppTour'
 import Playlist from '@/components/Playlist'
 import Player from '@/components/Player'
 import QRCodeComponent from '@/components/QRCode'
@@ -10,7 +11,7 @@ import MemberList from '@/components/MemberList'
 import NameInput from '@/components/NameInput'
 import Loading from '@/components/ui/Loading'
 import EmptyState from '@/components/ui/EmptyState'
-import { AlertCircle, Music, Crown } from 'lucide-react'
+import { AlertCircle, Music, Crown, HelpCircle } from 'lucide-react'
 
 interface Props {
   groupId: string
@@ -47,6 +48,7 @@ export default function GroupRoom({ groupId, nameParam }: Props) {
   const { data: group, isLoading } = useGroup(groupId)
   const members = useMembers(groupId, memberName)
   const { toggleDJMode, isTogglingDJ } = useDJMode(group, memberName)
+  const { startTour } = useAppTour(groupId, memberName)
 
   if (isLoading) {
     return (
@@ -78,7 +80,7 @@ export default function GroupRoom({ groupId, nameParam }: Props) {
       <header className="bg-surface-200/80 backdrop-blur-xl border-b border-surface-400 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4" data-tour="group-name">
               <div className="w-10 h-10 bg-brand-400 rounded-xl flex items-center justify-center">
                 <Music className="w-5 h-5 text-white" />
               </div>
@@ -96,6 +98,7 @@ export default function GroupRoom({ groupId, nameParam }: Props) {
               <button
                 onClick={toggleDJMode}
                 disabled={isTogglingDJ}
+                data-tour="dj-toggle"
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all font-medium text-sm ${
                   group?.dj_mode
                     ? 'bg-brand-500 hover:bg-brand-600 text-white ring-2 ring-brand-400'
@@ -107,6 +110,13 @@ export default function GroupRoom({ groupId, nameParam }: Props) {
                 <span className="hidden sm:inline">
                   {group?.dj_mode ? 'DJ Mode' : 'Open Mode'}
                 </span>
+              </button>
+              <button
+                onClick={startTour}
+                className="p-2 bg-brand-400/20 hover:bg-brand-400/30 rounded-lg transition-colors border border-brand-400/40 hover:border-brand-400/60"
+                title="Show tutorial"
+              >
+                <HelpCircle className="w-4 h-4 text-brand-400" />
               </button>
               <div className="hidden sm:flex items-center space-x-2 bg-surface-200 rounded-lg px-3 py-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />

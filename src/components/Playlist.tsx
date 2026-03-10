@@ -122,7 +122,7 @@ export default function Playlist({ group, memberName, totalMembers }: Props) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="bg-surface-200 border border-surface-400 rounded-2xl sm:rounded-3xl p-4 sm:p-8 overflow-hidden">
+      <div className="bg-surface-200 border border-surface-400 rounded-2xl sm:rounded-3xl p-4 sm:p-8 overflow-hidden" data-tour="playlist">
         <h2 className="text-xl sm:text-3xl font-bold mb-4 sm:mb-8 flex items-center gap-2 sm:gap-3 truncate">
           <Music className="w-6 h-6 sm:w-8 sm:h-8" />
           <span>Playlist ({songs.length})</span>
@@ -130,6 +130,7 @@ export default function Playlist({ group, memberName, totalMembers }: Props) {
 
         <div
           className="border-4 border-dashed border-brand-400 rounded-lg sm:rounded-2xl p-4 sm:p-8 mb-4 sm:mb-8 text-center hover:border-brand-300 transition-all bg-brand-500/20 overflow-hidden"
+          data-tour="add-song"
           onDrop={(e) => {
             e.preventDefault()
             const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain')
@@ -208,6 +209,7 @@ export default function Playlist({ group, memberName, totalMembers }: Props) {
                               <button
                                 onClick={() => upvoteMutation.mutate(song.id)}
                                 disabled={upvoteMutation.isPending}
+                                data-tour={index === 0 ? "voting" : undefined}
                                 className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm transition-all whitespace-nowrap inline-flex items-center gap-1 cursor-pointer hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 ${
                                   voteStatus.hasUpvoted 
                                     ? 'bg-brand-500 ring-2 ring-brand-400' 

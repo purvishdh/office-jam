@@ -31,8 +31,12 @@ export default function Player({ group, totalMembers = 0, memberName }: PlayerPr
   } = usePlayer(group, totalMembers);
   
   const { isDJ, djName } = useDJMode(group, memberName);
-  // Show controls if: no memberName yet (loading), no DJ mode, or user is DJ
-  const canControl = !memberName || !group?.dj_mode || isDJ;
+  
+  // Determine if user can control playback
+  // - If memberName is not set yet (loading), don't allow control
+  // - If DJ mode is off, everyone can control
+  // - If DJ mode is on, only the DJ can control
+  const canControl = memberName && (!group?.dj_mode || isDJ);
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -46,7 +50,7 @@ export default function Player({ group, totalMembers = 0, memberName }: PlayerPr
   const currentTime = (Number.isFinite(duration) ? duration : 0) * safeProgress;
 
   return (
-    <div className="bg-surface-200 border border-surface-400 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl shadow-brand-500/10">
+    <div className="bg-surface-200 border border-surface-400 backdrop-blur-2xl rounded-3xl p-6 shadow-2xl shadow-brand-500/10" data-tour="player">
       <div className="flex items-center gap-2 mb-6">
         <div className="h-1 w-1 rounded-full bg-brand-400 animate-pulse" />
         <h3 className="text-lg font-bold text-white">Now Playing</h3>
@@ -107,8 +111,17 @@ export default function Player({ group, totalMembers = 0, memberName }: PlayerPr
         <span className="font-medium">{formatTime(duration)}</span>
       </div>
 
-      <div className="flex items-center justify-center gap-5 sm:gap-4">
-        {canControl ? (
+      <div className="flex items-center justify-center gap-5 sm:gap-4" data-tour="player-controls">
+        {!memberName ? (
+          <div className="text-center py-6 px-4">
+            <div className="text-lg sm:text-xl font-semibold text-white/90 mb-1">
+              ⏳ Loading...
+            </div>
+            <div className="text-xs sm:text-sm text-white/60">
+              Setting up your session
+            </div>
+          </div>
+        ) : canControl ? (
           <>
             <button
               onClick={skipPrev}

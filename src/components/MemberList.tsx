@@ -12,7 +12,7 @@ export default function MemberList({
   group?: Group
 }) {
   return (
-    <div className="bg-surface-200 border border-surface-400 rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+    <div className="bg-surface-200 border border-surface-400 rounded-2xl sm:rounded-3xl p-4 sm:p-6" data-tour="members">
       <h3 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 flex items-center gap-2">
         <Users className="w-5 h-5" />
         <span>Members ({members.length})</span>

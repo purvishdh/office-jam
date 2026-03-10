@@ -24,7 +24,7 @@ export default function QRCodeComponent({ groupId }: { groupId: string }) {
   };
 
   return (
-    <div className="relative bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-center overflow-hidden shadow-2xl hover:bg-white/15 transition-all duration-300">
+    <div className="relative bg-white/10 backdrop-blur-2xl border border-white/20 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-center overflow-hidden shadow-2xl hover:bg-white/15 transition-all duration-300" data-tour="qr-code">
       {/* Decorative glow effects */}
       <div className="pointer-events-none absolute -top-24 -right-20 h-48 w-48 rounded-full bg-brand-400/20 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 -left-20 h-48 w-48 rounded-full bg-purple-500/15 blur-3xl" />
