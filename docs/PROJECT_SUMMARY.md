@@ -160,7 +160,7 @@ npm run dev
 
 **API Documentation:**
 - YouTube Data API v3: https://developers.google.com/youtube/v3
-- Piped API: https://piped.io (mirrors: `pipedapi.adminforge.de`, etc.)
+- RapidAPI Services: https://rapidapi.com (YouTube MP36, YouTube Downloader, YouTube Audio & Video URL)
 - Supabase: https://supabase.io/docs
 - Next.js 15: https://nextjs.org/docs
 

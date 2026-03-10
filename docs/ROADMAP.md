@@ -38,35 +38,48 @@ The `YT.Player` lives inside that iframe. When the browser freezes the iframe's 
 
 ## Fix: Background Playback (Implement Now)
 
-### Solution: Switch to `<audio>` element + Piped API stream URL
+### Solution: RapidAPI Waterfall + HTML5 Audio ✅ IMPLEMENTED
 
-The Piped API (`pipedapi.kavin.rocks`) returns a direct audio stream URL for any YouTube video ID. A native `<audio>` element keeps playing when the tab is backgrounded on mobile, unlike an iframe.
+Modern **RapidAPI services** provide reliable audio stream extraction with automatic fallback. A native `<audio>` element keeps playing when the tab is backgrounded on mobile, unlike an iframe.
 
-The codebase already has `usePlayer.ts` with a full `<audio>` implementation — it just got replaced by the YouTube IFrame version. The fix is to **restore the audio element approach and add a proper stream URL proxy**.
+The implementation uses a waterfall approach:
+1. Try YouTube MP36 (500 req/month)
+2. Fall back to YouTube Downloader (1000 req/month)
+3. Fall back to YouTube Audio & Video URL (500 req/month)
+4. Last resort: YouTube embed (always available)
 
-### Implementation Steps
+This ensures the app continues working even if one service hits quota limits.
 
-#### Step 1 — Add a server-side stream proxy route
+### Implementation Steps ✅ ALL COMPLETE
 
-Create `src/app/api/stream/route.ts`:
+#### Step 1 — Audio Stream Proxy Route ✅
+
+**File:** `src/app/api/stream/route.ts` (ALREADY CREATED)
+
+Uses RapidAPI waterfall with automatic fallback:
 
 ```ts
-// Fetches the Piped audio stream URL server-side and returns it.
-// This avoids CORS issues when Piped blocks direct browser requests.
+export const runtime = 'nodejs'
+
+async function tryYouTubeMP36(videoId: string): Promise<AudioSource | null> { ... }
+async function tryYouTubeDownloader(videoId: string): Promise<AudioSource | null> { ... }
+async function tryYouTubeAudioVideoURL(videoId: string): Promise<AudioSource | null> { ... }
+
+async function getAudioSource(videoId: string): Promise<AudioSource> {
+  return (
+    (await tryYouTubeMP36(videoId)) ??
+    (await tryYouTubeDownloader(videoId)) ??
+    (await tryYouTubeAudioVideoURL(videoId)) ??
+    embedFallback(videoId)
+  )
+}
+
 export async function GET(req: NextRequest) {
   const videoId = req.nextUrl.searchParams.get('v')
-  if (!videoId) return NextResponse.json({ error: 'Missing video id' }, { status: 400 })
-
-  const res = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`, {
-    headers: { 'User-Agent': 'Mozilla/5.0' },
-  })
-  if (!res.ok) return NextResponse.json({ error: 'Piped error' }, { status: 502 })
-
-  const data = await res.json()
-  // Pick highest quality audio-only stream
-  const stream = data.audioStreams?.find((s: { mimeType: string }) =>
-    s.mimeType?.includes('audio/mp4') || s.mimeType?.includes('audio/webm')
-  ) ?? data.audioStreams?.[0]
+  const source = await getAudioSource(videoId)
+  return NextResponse.json(source)
+}
+```
 
   if (!stream?.url) return NextResponse.json({ error: 'No audio stream' }, { status: 404 })
 
@@ -126,32 +139,12 @@ Delete the hidden `<div id="yt-player-container" />` from `Player.tsx`.
 Remove `src/types/youtube.d.ts` and the `loadYTScript` function.
 The thumbnail and title still come from YouTube Data API v3 — that's fine.
 
----
-
-## Architecture After Fix
-
-```
-User adds song:
-  YouTube URL → /api/song (YouTube Data API v3) → title, thumbnail, duration
-             → /api/stream (Piped API)           → piped_url (audio stream)
-             → Supabase groups.playlist[]         (stored with piped_url)
-
-Playback:
-  Supabase Realtime → usePlayer → <audio src={piped_url}> → plays in background
-  Media Session API → lock screen controls → update Supabase → all clients sync
-  Wake Lock API     → prevents screen sleep on host device
-```
-
----
-
-## Future Improvements (Priority Order)
-
 ### P1 — Stability & UX (next sprint)
 
 | # | Item | Why |
 |---|------|-----|
-| 1 | **Stream URL refresh** | Piped URLs expire ~6h; auto-refresh on `audio.error` |
-| 2 | **Fallback Piped instances** | `pipedapi.kavin.rocks` goes down regularly; maintain a list of mirrors and try next on 502 |
+| 1 | **Stream URL error recovery** | If RapidAPI stream expires, auto-re-fetch on `audio.error` |
+| 2 | **Monitor RapidAPI quotas** | Track usage across services, alert if approaching limits |
 | 3 | **Optimistic UI for playlist mutations** | Currently replaces whole array in Supabase; add `useMutation` optimistic updates so the UI doesn't flicker |
 | 4 | **Volume control** | `audio.volume` slider in Player UI |
 | 5 | **Current song position display** | Show `MM:SS / MM:SS` not just a progress bar |
@@ -160,8 +153,8 @@ Playback:
 
 | # | Item | Why |
 |---|------|-----|
-| 6 | **Self-host Piped instance** | Public Piped is rate-limited and unreliable for production; run your own on a $5 VPS |
-| 7 | **Stream URL pre-fetch** | Pre-fetch `piped_url` for the next 2 songs while current song plays, so there's no gap |
+| 6 | **Optimize RapidAPI quota usage** | Monitor which services are hitting limits, adjust fallback order |
+| 7 | **Stream URL pre-fetch** | Pre-fetch audio URL for the next 2 songs while current song plays, so there's no gap |
 | 8 | **Error boundaries** | Wrap `<Player>` and `<Playlist>` in React error boundaries so one crash doesn't kill the room |
 | 9 | **Reconnect on Supabase channel drop** | Add exponential backoff reconnect to `useGroup.ts` channel subscription |
 | 10 | **PWA manifest + service worker** | Enables "Add to Home Screen" on mobile; service worker can keep audio playing more reliably |
@@ -183,36 +176,8 @@ Playback:
 |---|------|-----|
 | 17 | **Supabase RLS policies** | Currently any client can update any group; add row-level security |
 | 18 | **Rate limiting on `/api/song`** | YouTube API has daily quota; add per-IP rate limiting via Upstash Redis |
-| 19 | **Edge runtime for `/api/stream`** | Move stream proxy to `export const runtime = 'edge'` for lower latency |
-| 20 | **Monitoring** | Add Sentry for error tracking; log Piped failures to catch mirrors going down |
-
----
-
-## Files To Change for Background Playback Fix
-
-```
-src/app/api/stream/route.ts     ← CREATE (Piped proxy)
-src/lib/types.ts                ← ADD piped_url, piped_url_expires to Song
-src/lib/piped.ts                ← FETCH piped_url when building Song object
-src/hooks/usePlayer.ts          ← REWRITE: audio element instead of YT iframe
-src/components/Player.tsx       ← REMOVE yt-player-container div
-src/types/youtube.d.ts          ← DELETE (no longer needed)
-```
-
----
-
-## Piped API Mirrors (fallback list)
-
-If the primary instance is down, try these in order:
-
-```
-https://pipedapi.kavin.rocks
-https://pipedapi.adminforge.de
-https://piped-api.garudalinux.org
-https://api.piped.projectsegfau.lt
-```
-
-Implement as a loop: try each, break on first `200 OK`.
+| 19 | **Node.js runtime for `/api/stream`** | Currently using Node.js to support RapidAPI libraries; ensure stable |
+| 20 | **Monitoring** | Add Sentry for error tracking; log RapidAPI failures and quota usage |
 
 ---
 
@@ -222,9 +187,10 @@ Implement as a loop: try each, break on first `200 OK`.
 |------|------|
 | `src/app/group/[id]/GroupRoom.tsx` | Main room layout, composes all components |
 | `src/hooks/useGroup.ts` | Supabase Realtime subscription, React Query cache |
-| `src/hooks/usePlayer.ts` | Audio playback engine — the file to rewrite |
+| `src/hooks/usePlayer.ts` | Audio playback engine with <audio> element |
 | `src/hooks/useMembers.ts` | Presence tracking via Supabase channel |
 | `src/components/Player.tsx` | Playback UI (controls, progress bar, artwork) |
+| `src/app/api/stream/route.ts` | RapidAPI waterfall for audio stream extraction |
 | `src/components/Playlist.tsx` | Song queue with drag-drop and voting |
 | `src/app/api/song/route.ts` | YouTube Data API v3 — fetches title/thumbnail/duration |
 | `src/app/api/stream/route.ts` | (to create) Piped proxy — fetches audio stream URL |

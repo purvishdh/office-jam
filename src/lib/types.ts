@@ -8,6 +8,8 @@ export interface Song {
   order: number
   piped_url: string
   piped_url_expires?: number
+  upvotes: string[]  // Array of member names who voted thumbs up
+  downvotes: string[] // Array of member names who voted thumbs down
 }
 
 export interface Group {

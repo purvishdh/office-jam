@@ -92,9 +92,9 @@
 │  └───────────────────────────┘                              │
 │                                                              │
 │  ┌───────────────────────────┐                              │
-│  │  Piped API Instances      │  (Audio stream URLs)        │
-│  │  (pipedapi.kavin.rocks)   │                              │
+│  │  RapidAPI Services        │  (Audio stream URLs)        │
 │  │  /api/stream?v={videoId}  │                              │
+│  │  (Waterfall: MP36, etc.)  │                              │
 │  └───────────────────────────┘                              │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
@@ -115,6 +115,7 @@
 | **Backend APIs** | Next.js API Routes | Server-side proxies (song metadata, streams) |
 | **Audio Playback** | HTML5 `<audio>` | Native browser playback |
 | **Real-time Sync** | Supabase Realtime (WebSocket) | Push updates to all clients |
+| **Audio Streaming** | RapidAPI (Multiple Services) | Waterfall approach for reliability |
 
 ---
 
@@ -299,59 +300,45 @@ The `piped_url` is currently **not actually a direct audio stream**—it's a You
 - Encryption of streaming URLs
 - YouTube's ToS against direct access
 
-#### Solution: Use Piped API for Audio Streams
+#### Solution: Use RapidAPI Services for Audio Streams
 
-**Piped** (https://piped.io) is a privacy-focused YouTube alternative that:
-- Extracts the audio stream URL from YouTube videos
-- Returns direct, playable audio stream URLs (bypassing encryption)
+**Current Implementation** uses a waterfall approach via RapidAPI:
+- **YouTube MP36** (Primary, 500 req/month) — Extracts audio from YouTube videos
+- **YouTube Downloader Video** (Fallback 1, 1000 req/month) — Video download with audio extraction
+- **YouTube Audio & Video URL** (Fallback 2, 500 req/month) — Direct audio/video URL extraction
+- Returns direct, playable audio stream URLs
 - Works reliably on mobile backgrounds
-- Has a public API (pipedapi.kavin.rocks)
 
 **The Fix (7-Step Implementation):**
 
-##### Step 1: Create `/api/stream` Route
+##### Step 1: Audio Stream Extraction Route
 
-**File:** `src/app/api/stream/route.ts` (NEW)
+**File:** `src/app/api/stream/route.ts` (ALREADY IMPLEMENTED)
+
+Implements a **waterfall approach** with multiple RapidAPI services for reliability:
 
 ```typescript
-import { NextRequest, NextResponse } from 'next/server'
+// Attempt 1: YouTube MP36 (Primary, 500 req/month)
+async function tryYouTubeMP36(videoId: string): Promise<AudioSource | null>
 
-export async function GET(req: NextRequest) {
-  const videoId = req.nextUrl.searchParams.get('v')
-  if (!videoId) {
-    return NextResponse.json({ error: 'Missing video id' }, { status: 400 })
-  }
+// Attempt 2: YouTube Downloader (Fallback 1, 1000 req/month)
+async function tryYouTubeDownloader(videoId: string): Promise<AudioSource | null>
 
-  try {
-    const res = await fetch(`https://pipedapi.kavin.rocks/streams/${videoId}`, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    })
-    if (!res.ok) {
-      return NextResponse.json({ error: 'Piped error' }, { status: 502 })
-    }
+// Attempt 3: YouTube Audio & Video URL (Fallback 2, 500 req/month)
+async function tryYouTubeAudioVideoURL(videoId: string): Promise<AudioSource | null>
 
-    const data = await res.json()
-    
-    // Find highest quality audio stream
-    const stream = data.audioStreams?.find(
-      (s: { mimeType: string }) => s.mimeType?.includes('audio/')
-    ) ?? data.audioStreams?.[0]
-
-    if (!stream?.url) {
-      return NextResponse.json({ error: 'No audio stream found' }, { status: 404 })
-    }
-
-    return NextResponse.json({
-      url: stream.url,
-      expires: stream.expires, // Unix timestamp when URL expires
-      quality: stream.quality || 'unknown',
-    })
-  } catch (err) {
-    console.error('Stream fetch error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+// Main function tries each in order, returns first success
+async function getAudioSource(videoId: string): Promise<AudioSource> {
+  return (
+    (await tryYouTubeMP36(videoId)) ??
+    (await tryYouTubeDownloader(videoId)) ??
+    (await tryYouTubeAudioVideoURL(videoId)) ??
+    embedFallback(videoId) // Last resort: YouTube embed
+  )
 }
 ```
+
+**Why Waterfall?** RapidAPI services have monthly quotas (500-1000 requests). If one runs out, the next is automatically tried, ensuring continued availability.
 
 ##### Step 2: Update Song Type
 
@@ -566,57 +553,39 @@ Delete this file entirely (no longer needed).
 
 ---
 
-### ⚠️ **ISSUE #2: No Fallback When Piped Instance Goes Down** (PRIORITY: HIGH)
+### ✅ **ISSUE #2: Reliable Audio Stream Extraction** (PRIORITY: RESOLVED)
 
-#### Problem
+#### Solution: Waterfall Approach with Multiple RapidAPI Services
 
-**Current State:** The app relies on a single Piped instance (`pipedapi.kavin.rocks`), which:
-- Goes down ~30% of the time (community-run, unreliable)
-- Gets rate-limited under heavy load
-- Has no fallback mechanism
+**Current Implementation:** `/api/stream/route.ts` implements intelligent fallback:
 
-**User Impact:** When the primary Piped instance is down, users cannot add songs.
+1. **YouTube MP36** (Primary, 500 req/month)
+   - Fastest and most reliable
+   - Returns direct audio/mpeg URL
 
-#### Solution
+2. **YouTube Downloader Video** (Fallback 1, 1000 req/month)
+   - More requests available
+   - Returns video stream with audio
 
-Implement a fallback loop across multiple Piped mirrors.
+3. **YouTube Audio & Video URL** (Fallback 2, 500 req/month)
+   - Additional fallback
+   - Returns direct URLs
 
-**File:** `src/lib/piped.ts`
+4. **YouTube Embed** (Last Resort)
+   - Always available
+   - Returns iframe embed URL (not ideal for mobile)
 
-```typescript
-const PIPED_MIRRORS = [
-  'https://pipedapi.kavin.rocks',
-  'https://pipedapi.adminforge.de',
-  'https://piped-api.garudalinux.org',
-  'https://api.piped.projectsegfau.lt',
-]
+**Benefits:**
+- ✅ Automatic failover if quota exceeded
+- ✅ Distributed quota usage across services
+- ✅ More reliable than single-instance approach
+- ✅ No external dependency on community Piped mirrors
 
-async function fetchFromPipedWithFallback(videoId: string): Promise<string> {
-  let lastError: Error | null = null
-
-  for (const mirror of PIPED_MIRRORS) {
-    try {
-      const res = await fetch(`${mirror}/streams/${videoId}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(5000),
-      })
-      
-      if (!res.ok) continue // Try next mirror
-      
-      const data = await res.json()
-      const stream = data.audioStreams?.[0]
-      if (stream?.url) return stream.url
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err))
-      continue
-    }
-  }
-
-  throw lastError || new Error('All Piped mirrors failed')
-}
+**Configuration:**
+```bash
+# .env.local
+RAPIDAPI_KEY=your_rapidapi_key_here
 ```
-
-Then update `/api/stream` to use this function.
 
 ---
 
@@ -741,9 +710,9 @@ Implement Supabase Row-Level Security (RLS):
 
 | Priority | Item | Why | Est. Hours |
 |----------|------|-----|-----------|
-| **P0** | **Piped API Integration (Issues #1)** | App doesn't work on mobile; blocks MVP | 6 |
-| **P0** | **Piped Fallback Mirrors (Issue #2)** | Current Piped instance unreliable | 2 |
-| **P1** | Stream URL expiry handling (Issue #3) | Prevent playback failures after 6h | 2 |
+| **P0** | ✅ **RapidAPI Waterfall Integration** | Reliable audio streaming with fallbacks | DONE |
+| **P0** | ✅ **Mobile Background Playback** | HTML5 audio with proper sync | DONE |
+| **P1** | Stream URL error handling | Re-fetch if stream unavailable | 2 |
 | **P1** | Optimistic UI updates (Issue #4) | Better UX during mutations | 3 |
 | **P1** | Volume control | Users want to adjust volume | 1 |
 | **P1** | Song position display (MM:SS) | Show current time, not just bar | 1 |
@@ -753,7 +722,7 @@ Implement Supabase Row-Level Security (RLS):
 
 | Priority | Item | Why | Est. Hours |
 |----------|------|-----|-----------|
-| **P2** | Self-host Piped instance | Reduce reliance on public instance | 4 |
+| **P2** | Optimize RapidAPI quota usage | Monitor and adjust rate limits | 2 |
 | **P2** | Pre-fetch next song stream | Eliminate gap between songs | 3 |
 | **P2** | Supabase reconnect logic | Handle dropped WebSocket connections | 3 |
 | **P2** | PWA + service worker | Enable offline mode; better background playback | 8 |
@@ -983,7 +952,7 @@ Check Supabase Dashboard:
 1. **Should we pre-fetch the next song's stream while current plays?** → YES (P2)
 2. **Should groups auto-delete after 24h of inactivity?** → Discuss with team
 3. **Do we need authentication from day 1, or can we launch without?** → Can launch without, add in P3
-4. **Which Piped mirror should be primary?** → pipedapi.kavin.rocks is most stable
+4. **How to manage RapidAPI quotas?** → Monitor usage, adjust fallback order if needed
 5. **Should we implement vote-sorting so voted songs play sooner?** → YES (P3)
 
 ---

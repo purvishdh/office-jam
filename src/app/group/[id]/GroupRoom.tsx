@@ -114,12 +114,12 @@ export default function GroupRoom({ groupId, nameParam }: Props) {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8">
           {/* Left Column - Playlist */}
           <div className="xl:col-span-7 space-y-6">
-            <Playlist group={group} />
+            <Playlist group={group} memberName={memberName} totalMembers={members.length} />
           </div>
           
           {/* Right Column - Player & Sidebar */}
           <div className="xl:col-span-5 space-y-6">
-            <Player group={group} />
+            <Player group={group} totalMembers={members.length} />
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-6">
             <MemberList members={members} />
             <QRCodeComponent groupId={groupId} />

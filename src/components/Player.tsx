@@ -11,7 +11,12 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export default function Player({ group }: { group: Group | undefined }) {
+interface PlayerProps {
+  group: Group | undefined
+  totalMembers?: number
+}
+
+export default function Player({ group, totalMembers = 0 }: PlayerProps) {
   const {
     isPlaying,
     progress,
@@ -21,7 +26,7 @@ export default function Player({ group }: { group: Group | undefined }) {
     skipNext,
     skipPrev,
     seek,
-  } = usePlayer(group);
+  } = usePlayer(group, totalMembers);
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

@@ -41,7 +41,11 @@ npm run lint    # ESLint
 
 ### External Music Source
 
-Songs are fetched from the [Piped API](https://pipedapi.kavin.rocks) — a privacy-respecting YouTube proxy. `Playlist.tsx` extracts `videoId` from a YouTube URL, calls `/streams/{videoId}`, and stores `audioStreams[0].url` as `piped_url` in the song object.
+Songs are fetched using a **RapidAPI waterfall system**. When a YouTube URL is added:
+1. `/api/song` fetches metadata from YouTube Data API
+2. `/api/stream` tries multiple RapidAPI services in order (YouTube MP36 → YouTube Downloader → YouTube Audio & Video URL)
+3. Returns direct audio stream URL stored as `piped_url` in the song object
+4. HTML5 `<audio>` element plays the stream with reliable background playback
 
 ### Supabase Schema
 

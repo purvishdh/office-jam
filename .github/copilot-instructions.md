@@ -10,7 +10,7 @@
 
 Real-time collaborative music player for teams. Users create groups, add YouTube songs to a shared playlist, and play in sync across all devices. Built with Next.js 15 (App Router) + Supabase + HTML5 audio.
 
-**Critical Context:** The app SHOULD use HTML5 `<audio>` with Piped API stream URLs for background playback on mobile devices (iOS/Android), but currently uses YouTube IFrame API which breaks when screens lock. See `FIXES_NEEDED.md` for implementation.
+**Critical Context:** The app uses HTML5 `<audio>` with RapidAPI stream URLs for reliable background playback on mobile devices (iOS/Android). Multiple fallback services ensure audio streaming continues even if one hits quota limits.
 
 ## Architecture
 
@@ -33,17 +33,20 @@ await supabase.from('groups').update({
 
 When modifying `usePlayer.ts`, preserve both subscriptions — removing either breaks multi-device sync.
 
-### Audio Playback Critical Pattern
+### Audio Playback Implementation ✅ WORKING
 
-**⚠️ BROKEN:** `Player.tsx` renders a hidden YouTube iframe (`#yt-player-container`) which freezes when mobile screens lock. The `usePlayer` hook has HTML5 `<audio>` logic but receives invalid YouTube watch URLs instead of audio streams.
+**Current Status:** HTML5 `<audio>` element plays RapidAPI stream URLs with reliable background playback.
 
-**Target behavior after fix:**
-1. Check if `song.piped_url` changed → load new source
-2. Calculate elapsed time from `playback_started_at` timestamp
-3. Sync `audio.currentTime` if drift exceeds 2 seconds
-4. Call `audio.play()` or `audio.pause()` based on `is_playing`
-
-See `FIXES_NEEDED.md` Step 3-5 for required changes to `Player.tsx` and `usePlayer.ts`.
+**Flow:**
+1. User adds YouTube URL → `/api/song` fetches metadata from YouTube API
+2. `/api/stream` tries RapidAPI services in waterfall order:
+   - Try YouTube MP36 (500 req/month)
+   - Fall back to YouTube Downloader (1000 req/month)
+   - Fall back to YouTube Audio & Video URL (500 req/month)
+   - Last resort: YouTube embed URL
+3. Return direct audio stream URL in response
+4. `usePlayer` hook loads URL into HTML5 `<audio>` element
+5. Audio continues playing in background even when screen locks ✅
 
 ### External APIs
 - **YouTube Data API v3** (`/api/song`) — Fetches metadata (title, thumbnail, duration)

@@ -1,6 +1,6 @@
 "use client";
 import { QRCodeSVG } from "qrcode.react";
-import { Smartphone, Copy, Share2, Sparkles, Check } from "lucide-react";
+import { Copy, Share2, Sparkles, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { useState } from "react";
 

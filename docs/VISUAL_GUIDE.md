@@ -438,9 +438,11 @@ src/lib/piped.ts
 ├─ calls: YouTube Data API v3
 └─ returns: {title, thumbnail, duration, video_id}
 
-/api/stream ← CREATE THIS
-├─ calls: Piped API (pipedapi.kavin.rocks)
-└─ returns: {url, expires}
+/api/stream ← RAPIDAPI WATERFALL
+├─ tries: YouTube MP36 (primary, 500 req/month)
+├─ tries: YouTube Downloader (fallback, 1000 req/month)
+├─ tries: YouTube Audio & Video URL (fallback, 500 req/month)
+└─ returns: {url, source, mimeType, isStreamable}
 
 src/types/youtube.d.ts ← DELETE THIS
 ```
