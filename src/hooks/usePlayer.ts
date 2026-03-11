@@ -36,6 +36,8 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
   const totalMembersRef = useRef<number>(totalMembers)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
   const autoAdvancingRef = useRef(false)
+  const crossfadeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const nextAudioRef = useRef<HTMLAudioElement | null>(null)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -61,19 +63,40 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
       if (!g || !groupId) return
       
       const nextIdx = (g.current_index ?? 0) + 1
-      if (nextIdx < g.playlist.length) {
-        console.log(`[Audio] Song ended, auto-advancing from index ${g.current_index} to ${nextIdx}`)
-        try {
-          await supabase.from('groups').update({
-            current_index: nextIdx,
-            is_playing: true,
-            playback_started_at: new Date().toISOString(),
-          }).eq('id', groupId)
-        } catch (err) {
-          console.error('[Audio] Failed to auto-advance:', err)
-        }
-      } else {
+      const loopMode = g.loop_mode ?? false
+      const shuffleMode = g.shuffle_mode ?? false
+      
+      // Determine next index
+      let targetIdx = nextIdx
+      
+      if (shuffleMode && g.playlist.length > 0) {
+        // Random next song (excluding current)
+        const currentIdx = g.current_index ?? 0
+        const availableIndices = g.playlist
+          .map((_, i) => i)
+          .filter(i => i !== currentIdx)
+        targetIdx = availableIndices[Math.floor(Math.random() * availableIndices.length)]
+      } else if (nextIdx >= g.playlist.length && loopMode) {
+        // Loop back to start
+        targetIdx = 0
+      } else if (nextIdx >= g.playlist.length) {
+        // End of playlist, no loop
         console.log('[Audio] Reached end of playlist')
+        await supabase.from('groups').update({
+          is_playing: false,
+        }).eq('id', groupId)
+        return
+      }
+      
+      console.log(`[Audio] Song ended, advancing to index ${targetIdx}`)
+      try {
+        await supabase.from('groups').update({
+          current_index: targetIdx,
+          is_playing: true,
+          playback_started_at: new Date().toISOString(),
+        }).eq('id', groupId)
+      } catch (err) {
+        console.error('[Audio] Failed to auto-advance:', err)
       }
     }
 
@@ -81,7 +104,8 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
     const handleError = async () => {
       const g = groupRef.current
       const song: Song | undefined = g?.playlist[g?.current_index ?? 0]
-      if (!song?.video_id || !g) return
+      const groupId = groupIdRef.current
+      if (!song?.video_id || !g || !groupId) return
 
       console.error('[Audio] Playback error detected for:', song.title)
       console.error('[Audio] Error details:', {
@@ -92,17 +116,26 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
       })
       
       try {
-        console.log('[Audio] Attempting to refresh stream URL...')
+        console.log('[Audio] Attempting to refresh stream URL (attempt 1/2)...')
         
-        // Fetch fresh stream URL
-        const streamRes = await fetch(`/api/stream?v=${song.video_id}`)
+        // Fetch fresh stream URL with timeout
+        const streamRes = await fetch(`/api/stream?v=${song.video_id}`, {
+          signal: AbortSignal.timeout(8000) // 8 second timeout
+        })
+        
         if (!streamRes.ok) {
           const errorText = await streamRes.text()
-          throw new Error(`Failed to refresh stream: ${streamRes.status} ${errorText}`)
+          console.error('[Audio] Stream refresh failed:', errorText)
+          throw new Error(`Failed to refresh stream: ${streamRes.status}`)
         }
         
         const streamData = await streamRes.json()
-        console.log('[Audio] Got fresh stream data:', streamData)
+        console.log('[Audio] Got fresh stream data from:', streamData.source)
+        
+        // Verify we got a streamable URL
+        if (!streamData.isStreamable || !streamData.url) {
+          throw new Error('Stream source returned non-streamable URL')
+        }
         
         // Calculate elapsed time from playback_started_at
         const elapsed = g.playback_started_at
@@ -118,11 +151,38 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
         // Resume if was playing
         if (g.is_playing) {
           await audio.play()
+          console.log('[Audio] Stream URL refreshed and playback resumed')
         }
-
-        console.log('[Audio] Stream URL refreshed successfully')
       } catch (err) {
-        console.error('[Audio] Failed to recover from stream error:', err)
+        const message = err instanceof Error ? err.message : String(err)
+        console.error('[Audio] Failed to recover from stream error:', message)
+        
+        // If recovery failed, skip to next song to avoid getting stuck
+        console.log('[Audio] Skipping to next song due to unrecoverable error...')
+        const nextIdx = (g.current_index ?? 0) + 1
+        
+        if (nextIdx < g.playlist.length) {
+          try {
+            await supabase.from('groups').update({
+              current_index: nextIdx,
+              is_playing: true,
+              playback_started_at: new Date().toISOString(),
+            }).eq('id', groupId)
+            console.log('[Audio] Advanced to next song')
+          } catch (skipErr) {
+            console.error('[Audio] Failed to skip to next song:', skipErr)
+          }
+        } else {
+          // Reached end of playlist, stop playing
+          console.log('[Audio] Reached end of playlist, stopping playback')
+          try {
+            await supabase.from('groups').update({
+              is_playing: false,
+            }).eq('id', groupId)
+          } catch (stopErr) {
+            console.error('[Audio] Failed to stop playback:', stopErr)
+          }
+        }
       }
     }
 
@@ -140,19 +200,158 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
   }, [])
 
   // Apply group state whenever Supabase pushes an update
-  const applyGroupState = useCallback((g: Group) => {
+  const applyGroupState = useCallback(async (g: Group) => {
     const audio = audioRef.current
     if (!audio) {
       console.warn('[Audio] Audio element not ready')
       return
     }
 
+    // Apply playback speed
+    const playbackSpeed = g.playback_speed ?? 1
+    audio.playbackRate = playbackSpeed
+
     const song: Song | undefined = g.playlist[g.current_index ?? 0]
-    if (!song?.piped_url) {
-      console.log('[Audio] No current song or URL available')
+    if (!song) {
+      console.log('[Audio] No current song available')
       audio.pause()
       setIsPlaying(false)
       return
+    }
+
+    // Handle crossfade
+    const crossfadeDuration = g.crossfade_duration ?? 0
+    if (crossfadeDuration > 0 && audio.duration > 0) {
+      // Start crossfade when close to the end
+      const timeUntilEnd = audio.duration - audio.currentTime
+      if (timeUntilEnd > 0 && timeUntilEnd <= crossfadeDuration && !crossfadeTimeoutRef.current) {
+        const nextSong = g.playlist[(g.current_index ?? 0) + 1]
+        if (nextSong?.piped_url) {
+          console.log(`[Audio] Starting ${crossfadeDuration}s crossfade`)
+          
+          // Prepare next audio element
+          const nextAudio = new Audio(nextSong.piped_url)
+          nextAudio.volume = 0
+          nextAudio.playbackRate = playbackSpeed
+          nextAudioRef.current = nextAudio
+          
+          // Start playing next song at 0 volume
+          nextAudio.play().catch(err => console.warn('[Audio] Crossfade pre-load failed:', err))
+          
+          // Gradually fade out current, fade in next
+          const fadeSteps = 20
+          const fadeInterval = (crossfadeDuration * 1000) / fadeSteps
+          let step = 0
+          
+          const fadeTimer = setInterval(() => {
+            step++
+            const progress = step / fadeSteps
+            audio.volume = Math.max(0, 1 - progress)
+            if (nextAudio) nextAudio.volume = Math.min(1, progress)
+            
+            if (step >= fadeSteps) {
+              clearInterval(fadeTimer)
+              audio.volume = 1
+              if (nextAudio) {
+                nextAudio.pause()
+                nextAudio.src = ''
+                nextAudioRef.current = null
+              }
+            }
+          }, fadeInterval)
+          
+          crossfadeTimeoutRef.current = setTimeout(() => {
+            clearInterval(fadeTimer)
+            crossfadeTimeoutRef.current = null
+          }, crossfadeDuration * 1000 + 500)
+        }
+      }
+    }
+
+    // If song has no piped_url or has invalid URL, fetch it now
+    if (!song.piped_url || song.piped_url.includes('youtube.com/watch?v=') || 
+        song.piped_url.includes('youtube.com/embed/') || song.piped_url.includes('youtu.be/')) {
+      
+      const groupId = groupIdRef.current
+      if (!groupId || !song.video_id) {
+        console.error('[Audio] Cannot fetch stream URL - missing groupId or video_id')
+        audio.pause()
+        setIsPlaying(false)
+        return
+      }
+
+      console.log('[Audio] Fetching stream URL for:', song.title)
+      
+      try {
+        const streamRes = await fetch(`/api/stream?v=${song.video_id}`)
+        if (!streamRes.ok) {
+          const errorText = await streamRes.text()
+          console.error('[Audio] Stream fetch failed:', errorText)
+          
+          // Auto-skip to next song
+          const nextIdx = (g.current_index ?? 0) + 1
+          if (nextIdx < g.playlist.length) {
+            console.log('[Audio] Skipping to next song...')
+            await supabase.from('groups').update({
+              current_index: nextIdx,
+              is_playing: true,
+              playback_started_at: new Date().toISOString(),
+            }).eq('id', groupId)
+          } else {
+            console.log('[Audio] No more songs, stopping playback')
+            await supabase.from('groups').update({
+              is_playing: false,
+            }).eq('id', groupId)
+          }
+          return
+        }
+        
+        const streamData = await streamRes.json()
+        if (!streamData.isStreamable || !streamData.url) {
+          console.error('[Audio] Got non-streamable URL from API')
+          
+          // Auto-skip to next song
+          const nextIdx = (g.current_index ?? 0) + 1
+          if (nextIdx < g.playlist.length) {
+            await supabase.from('groups').update({
+              current_index: nextIdx,
+              is_playing: true,
+              playback_started_at: new Date().toISOString(),
+            }).eq('id', groupId)
+          }
+          return
+        }
+        
+        console.log('[Audio] Got fresh stream URL, updating playlist...')
+        
+        // Update the song in the playlist with the new URL
+        const updatedPlaylist = [...g.playlist]
+        updatedPlaylist[g.current_index] = {
+          ...song,
+          piped_url: streamData.url,
+          piped_url_expires: streamData.expires
+        }
+        
+        await supabase.from('groups').update({
+          playlist: updatedPlaylist
+        }).eq('id', groupId)
+        
+        // The update will trigger applyGroupState again via Realtime
+        return
+      } catch (err) {
+        console.error('[Audio] Error fetching stream URL:', err)
+        
+        // Auto-skip to next song
+        const nextIdx = (g.current_index ?? 0) + 1
+        if (nextIdx < g.playlist.length) {
+          await supabase.from('groups').update({
+            current_index: nextIdx,
+            is_playing: true,
+            playback_started_at: new Date().toISOString(),
+          }).eq('id', groupId)
+        }
+        return
+      }
     }
 
     // Check if the stream URL has expired
@@ -407,9 +606,24 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
     const groupId = groupIdRef.current
     const g = groupRef.current
     if (!groupId || !g) return
-    const nextIndex = (g.current_index ?? 0) + 1
+    
+    const shuffleMode = g.shuffle_mode ?? false
+    let nextIndex: number
+    
+    if (shuffleMode && g.playlist.length > 1) {
+      // Random next song (excluding current)
+      const currentIdx = g.current_index ?? 0
+      const availableIndices = g.playlist
+        .map((_, i) => i)
+        .filter(i => i !== currentIdx)
+      nextIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)]
+    } else {
+      nextIndex = (g.current_index ?? 0) + 1
+    }
+    
     if (nextIndex >= g.playlist.length) return
     loadedUrlRef.current = null
+    
     const { error } = await supabase.from('groups').update({
       current_index: nextIndex,
       is_playing: true,

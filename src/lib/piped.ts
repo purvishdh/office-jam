@@ -6,6 +6,53 @@ function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`
 }
 
+/**
+ * Check if a URL is a YouTube watch/embed URL (not a direct stream)
+ */
+export function isInvalidStreamUrl(url: string): boolean {
+  return url.includes('youtube.com/watch?v=') || 
+         url.includes('youtube.com/embed/') ||
+         url.includes('youtu.be/')
+}
+
+/**
+ * Test if a stream URL is actually loadable (quick HEAD request)
+ * Returns true if URL appears to be valid audio stream
+ */
+export async function validateStreamUrl(url: string): Promise<boolean> {
+  // Skip validation for empty URLs (will be fetched later)
+  if (!url) return true
+  
+  // Reject known bad patterns immediately
+  if (isInvalidStreamUrl(url)) return false
+  
+  try {
+    // Try HEAD request first (faster, no download)
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 sec timeout
+    
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: controller.signal,
+    })
+    
+    clearTimeout(timeoutId)
+    
+    // Check if response is audio content
+    const contentType = response.headers.get('content-type') || ''
+    const isAudio = contentType.includes('audio') || 
+                    contentType.includes('mpeg') || 
+                    contentType.includes('mp4') ||
+                    contentType.includes('application/octet-stream')
+    
+    return response.ok && isAudio
+  } catch (err) {
+    // If HEAD fails, URL is likely invalid
+    console.warn('[Validation] Stream URL validation failed:', err)
+    return false
+  }
+}
+
 export function extractVideoId(youtubeUrl: string): string | null {
   // Handle youtu.be/VIDEO_ID
   const shortMatch = youtubeUrl.match(/youtu\.be\/([^?&/]+)/)
@@ -38,6 +85,17 @@ export async function fetchSong(youtubeUrl: string, currentQueueLength: number):
     throw new Error(error ?? 'Failed to fetch song')
   }
   const video = await res.json()
+
+  // Validate that we got a proper stream URL, not a YouTube watch URL
+  if (isInvalidStreamUrl(video.piped_url)) {
+    throw new Error('Stream URL not available. Service may be down or quota exceeded.')
+  }
+
+  // Quick validation that the stream URL is actually loadable
+  const isValid = await validateStreamUrl(video.piped_url)
+  if (!isValid) {
+    throw new Error('Unable to verify stream URL. The video may not be playable or service is unavailable.')
+  }
 
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
@@ -73,13 +131,14 @@ export async function fetchPlaylist(youtubeUrl: string, currentQueueLength: numb
   }
 
   // Transform playlist items into Song objects
-  // Note: piped_url will be fetched on-demand when song is played
+  // Note: For playlists, we set a placeholder that will trigger stream fetch on play
+  // Using empty string instead of YouTube URL to avoid confusion with real streams
   return data.songs.map((video: PlaylistVideo, index: number) => ({
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}-${index}`,
     title: video.title,
     video_id: video.video_id,
-    piped_url: `https://www.youtube.com/watch?v=${video.video_id}`, // Placeholder - will be fetched on play
-    piped_url_expires: Math.floor(Date.now() / 1000) + 3600,
+    piped_url: '', // Empty - will be fetched when song is about to play
+    piped_url_expires: 0, // Indicate it needs to be fetched
     thumbnail: video.thumbnail,
     duration: video.duration,
     votes: 0,

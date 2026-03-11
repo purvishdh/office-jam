@@ -161,29 +161,21 @@ async function tryYouTubeAudioVideoURL(videoId: string): Promise<AudioSource | n
   }
 }
 
-// Final fallback: YouTube embed (no background audio, but never fails)
-function embedFallback(videoId: string): AudioSource {
-  console.log(`[Stream] Using YouTube embed fallback for ${videoId}`)
-  return {
-    url: `https://www.youtube.com/embed/${videoId}?autoplay=1`,
-    source: 'embed',
-    mimeType: 'text/html',
-    isStreamable: false, // no mobile background
-    expires: Math.floor(Date.now() / 1000) + 3600, // 1 hour
-  }
-}
-
 // Main waterfall function - tries each RapidAPI method in order
-async function getAudioSource(videoId: string): Promise<AudioSource> {
+async function getAudioSource(videoId: string): Promise<AudioSource | null> {
   console.log(`[Stream] Starting RapidAPI audio source waterfall for ${videoId}`)
   
   const result =
     (await tryYouTubeMP36(videoId)) ??
     (await tryYouTubeDownloader(videoId)) ??
-    (await tryYouTubeAudioVideoURL(videoId)) ??
-    embedFallback(videoId)
+    (await tryYouTubeAudioVideoURL(videoId))
 
-  console.log(`[Stream] Selected source: ${result.source} (streamable: ${result.isStreamable})`)
+  if (result) {
+    console.log(`[Stream] Selected source: ${result.source} (streamable: ${result.isStreamable})`)
+  } else {
+    console.error(`[Stream] All RapidAPI sources failed for ${videoId}`)
+  }
+  
   return result
 }
 
@@ -196,6 +188,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const audioSource = await getAudioSource(videoId)
+    
+    if (!audioSource) {
+      console.error(`[Stream] No audio source available for ${videoId}`)
+      return NextResponse.json(
+        { error: 'No audio stream available. All services failed or quota exceeded.' },
+        { status: 503 }
+      )
+    }
     
     return NextResponse.json({
       url: audioSource.url,

@@ -21,6 +21,10 @@ export interface Group {
   playback_started_at: string | null
   dj_mode?: boolean
   dj_name?: string
+  shuffle_mode?: boolean
+  loop_mode?: boolean
+  playback_speed?: number
+  crossfade_duration?: number
   created_at: string
 }
 
