@@ -211,7 +211,7 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
     const playbackSpeed = g.playback_speed ?? 1
     audio.playbackRate = playbackSpeed
 
-    const song: Song | undefined = g.playlist[g.current_index ?? 0]
+    const song: Song | undefined = g.playlist?.[g.current_index ?? 0]
     if (!song) {
       console.log('[Audio] No current song available')
       audio.pause()
@@ -425,7 +425,7 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
   useEffect(() => {
     if (!group) return
     
-    const currentSong = group.playlist[group.current_index ?? 0]
+    const currentSong = group.playlist?.[group.current_index ?? 0]
     if (!currentSong) return
     
     // Check if current song should be auto-skipped
@@ -668,7 +668,7 @@ export function usePlayer(group: Group | undefined, totalMembers: number = 0) {
     }
   }, [])
 
-  const currentSong: Song | undefined = group?.playlist[group?.current_index ?? 0]
+  const currentSong: Song | undefined = group?.playlist?.[group?.current_index ?? 0]
 
   return { isPlaying, progress, duration, currentSong, togglePlay, skipNext, skipPrev, seek }
 }
